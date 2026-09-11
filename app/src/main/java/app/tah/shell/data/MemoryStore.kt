@@ -12,11 +12,20 @@ class MemoryStore(context: Context) {
     private val _notes = MutableStateFlow(load())
     val notes: StateFlow<List<MemoryNote>> = _notes.asStateFlow()
 
-    fun snapshotText(): String = _notes.value.joinToString("\n") { "- ${it.title}: ${it.body}" }
+    fun snapshotText(): String {
+        val list = _notes.value
+        if (list.isEmpty()) return "(no memory notes yet)"
+        return list.joinToString("\n") { "- ${it.title}: ${it.body}" }
+    }
 
     fun upsert(note: MemoryNote) {
         val next = _notes.value.filterNot { it.id == note.id } + note
         _notes.value = next.sortedByDescending { it.updatedAt }
+        persist()
+    }
+
+    fun delete(id: String) {
+        _notes.value = _notes.value.filterNot { it.id == id }
         persist()
     }
 
