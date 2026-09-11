@@ -1,7 +1,9 @@
 package app.tah.shell.ui.settings
 
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -31,6 +34,8 @@ import app.tah.shell.TahApplication
 import app.tah.shell.data.InputMode
 import app.tah.shell.data.PermissionMode
 import app.tah.shell.ui.TahVmFactory
+import app.tah.shell.ui.components.HarnessGlyph
+import app.tah.shell.ui.theme.TahOutline
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,18 +124,62 @@ fun SettingsScreen() {
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("System notification settings") }
+            Text(
+                "If the system denied notifications, Needs-you may miss you — open system settings above.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             HorizontalDivider()
             Text("About / OEM wake", style = MaterialTheme.typography.titleMedium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                HarnessGlyph(size = 40.dp)
+                Column {
+                    Text("TAH · Signal Deck", style = MaterialTheme.typography.titleSmall)
+                    Text("app.tah.shell · 0.3.0-m2", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, TahOutline, RoundedCornerShape(12.dp))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Foreground / wake (honest)", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "While a run is active, TAH starts a lightweight foreground service " +
+                        "(ongoing “Active runs” notification) to raise process priority. " +
+                        "That is not immortality — OEM battery killers, force-stop, and " +
+                        "aggressive Doze can still end the process.\n\n" +
+                        "Session metadata, timeline snapshot, and Needs-you gates survive " +
+                        "in local prefs. Re-open TAH to resume awareness of what was waiting; " +
+                        "the loop does not silently restart mid-tool after death.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text("OEM battery tips", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "• Pixel / stock: Settings → Apps → TAH → Battery → Unrestricted (optional).\n" +
+                        "• Samsung: Apps → TAH → Battery → Allow background activity; disable sleeping apps for TAH.\n" +
+                        "• Xiaomi / HyperOS: Autostart + no battery saver for TAH; lock in Recents.\n" +
+                        "• Oppo / Vivo / OnePlus: similar “allow background” + autostart toggles.\n\n" +
+                        "Even unrestricted, OEMs can kill. Plan for Needs-you notifications, not daemons.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "Device: ${Build.MANUFACTURER} ${Build.MODEL} · API ${Build.VERSION.SDK_INT}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
-                "TAH · Signal Deck · M1 playable TUI\n" +
-                    "app.tah.shell · 0.2.0-m1\n\n" +
-                    "Foreground / wake (honest): active runs live in-process. " +
-                    "A dedicated foreground service lands in M2. OEM battery killers " +
-                    "can still stop agents. Session metadata + Needs-you survive process " +
-                    "death; the loop does not claim immortality.\n\n" +
-                    "No OFH / Claude / Warp / Termux / OpenClaw marks.",
-                style = MaterialTheme.typography.bodyMedium,
+                "No OFH / Claude / Warp / Termux / OpenClaw marks.",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
