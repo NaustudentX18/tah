@@ -6,11 +6,10 @@ import app.tah.shell.data.AppContainer
 import app.tah.shell.data.ProviderKind
 import app.tah.shell.data.SessionColumn
 import app.tah.shell.data.SessionRepository
-import app.tah.shell.data.SkillCatalog
 
 class DispatchViewModel(private val container: AppContainer) : ViewModel() {
     val provider = container.providers.snapshot
-    val skills = SkillCatalog.packs
+    val skills = container.skills.packs
 
     fun startRun(
         prompt: String,
