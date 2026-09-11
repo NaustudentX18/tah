@@ -1,5 +1,6 @@
 package app.tah.shell.runtime
 
+import android.app.Application
 import app.tah.shell.data.AgentSession
 import app.tah.shell.data.ChatMessage
 import app.tah.shell.data.DoneChip
@@ -7,9 +8,10 @@ import app.tah.shell.data.MemoryStore
 import app.tah.shell.data.PendingPermission
 import app.tah.shell.data.ProviderKind
 import app.tah.shell.data.ProviderRepository
+import app.tah.shell.data.SessionColumn
 import app.tah.shell.data.SessionRepository
 import app.tah.shell.data.SettingsRepository
-import app.tah.shell.data.SkillCatalog
+import app.tah.shell.data.SkillStore
 import app.tah.shell.data.ToolCall
 import app.tah.shell.data.ToolRisk
 import app.tah.shell.data.ToolStatus
@@ -24,10 +26,12 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
 class AgentLoop(
+    private val app: Application,
     private val sessions: SessionRepository,
     private val providers: ProviderRepository,
     private val settings: SettingsRepository,
     private val memory: MemoryStore,
+    private val skills: SkillStore,
     private val notifier: NeedsYouNotifier,
     private val client: OpenAiCompatClient,
     private val scope: CoroutineScope,
@@ -44,15 +48,26 @@ class AgentLoop(
     fun start(sessionId: String) {
         jobs[sessionId]?.cancel()
         jobs[sessionId] = scope.launch {
+            val session = sessions.session(sessionId)
+            AgentRunForegroundService.start(
+                app,
+                title = "TAH · ${session?.title?.take(40) ?: "run"}",
+            )
             try {
                 runSession(sessionId)
             } catch (_: CancellationException) {
                 sessions.appendSystem(sessionId, "Run cancelled.")
             } catch (t: Throwable) {
-                sessions.appendSystem(sessionId, "Agent process died. Session kept; Needs-you preserved if any.")
+                sessions.appendSystem(
+                    sessionId,
+                    "Agent process died. Session kept; Needs-you preserved if any. (${t.message ?: "error"})",
+                )
                 sessions.markDone(sessionId, DoneChip.Failed)
             } finally {
                 jobs.remove(sessionId)
+                if (jobs.isEmpty()) {
+                    AgentRunForegroundService.stop(app)
+                }
             }
         }
     }
@@ -70,9 +85,11 @@ class AgentLoop(
 
     fun isRunning(sessionId: String): Boolean = jobs[sessionId]?.isActive == true
 
+    fun anyRunning(): Boolean = jobs.values.any { it.isActive }
+
     private suspend fun runSession(sessionId: String) {
         val session = sessions.session(sessionId) ?: return
-        sessions.updateSession(sessionId) { it.copy(column = app.tah.shell.data.SessionColumn.Working) }
+        sessions.updateSession(sessionId) { it.copy(column = SessionColumn.Working) }
         val provider = providers.current
         val live = provider.isLive && session.providerKind != ProviderKind.Demo
         val label = if (live) {
@@ -80,19 +97,22 @@ class AgentLoop(
         } else {
             "demo stream (offline)"
         }
-        sessions.appendSystem(sessionId, "Run started · $label")
+        sessions.appendSystem(sessionId, "Run started · $label · FG notification up (not immortal)")
         if (budgetHit(session.copy(iterationsUsed = session.iterationsUsed))) {
             finishBudget(sessionId)
             return
         }
 
-        val skill = SkillCatalog.byId(session.skillId)
+        val skill = skills.byId(session.skillId)
+        val enabledSkills = skills.enabledSnapshot()
         val memoryText = memory.snapshotText()
         val messages = mutableListOf(
             ChatMessage(
                 "system",
                 "You are TAH, a phone-first agent harness. Prefer short status. " +
-                    "Do not pretend tools ran without a card.\n\nSkill:\n${skill.body}\n\nMemory:\n$memoryText",
+                    "Do not pretend tools ran without a card.\n\n" +
+                    "Active skill (${skill.title}):\n${skill.body}\n\n" +
+                    "Enabled packs:\n$enabledSkills\n\nMemory:\n$memoryText",
             ),
             ChatMessage("user", session.prompt),
         )
@@ -252,7 +272,7 @@ class AgentLoop(
         sessions.upsertTool(tool.copy(status = ToolStatus.AwaitingPermission))
         sessions.markNeedsYou(session.id, permission)
         if (settings.current.notificationsEnabled) {
-            notifier.notifyNeedsYou(session.copy(column = app.tah.shell.data.SessionColumn.NeedsYou), permission)
+            notifier.notifyNeedsYou(session.copy(column = SessionColumn.NeedsYou), permission)
         }
         val deferred = CompletableDeferred<GateDecision>()
         gates[session.id] = deferred
