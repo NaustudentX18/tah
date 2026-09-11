@@ -2,7 +2,7 @@ package app.tah.shell.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-/** Signal Deck color tokens for TAH M0. */
+/** Signal Deck color tokens for TAH M2. */
 val TahPrimary = Color(0xFF2EE6D6)
 val TahOnPrimary = Color(0xFF0B1214)
 val TahSurface = Color(0xFF0E1418)
