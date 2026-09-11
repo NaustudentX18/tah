@@ -1,20 +1,18 @@
 package app.tah.shell.ui.detail
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,31 +21,69 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import app.tah.shell.ui.components.PermissionCardStub
-import app.tah.shell.ui.components.ToolCardStub
-import app.tah.shell.ui.theme.TahOutline
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import app.tah.shell.TahApplication
+import app.tah.shell.data.SessionColumn
+import app.tah.shell.data.TimelineItem
+import app.tah.shell.ui.TahVmFactory
+import app.tah.shell.ui.components.BudgetStrip
+import app.tah.shell.ui.components.GuideComposer
+import app.tah.shell.ui.components.PermissionCard
+import app.tah.shell.ui.components.StatusChip
+import app.tah.shell.ui.components.ToolCard
+import app.tah.shell.ui.theme.TahNeedsYou
 import app.tah.shell.ui.theme.TahSurfaceBright
-import app.tah.shell.ui.theme.TahSurfaceContainer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionDetailScreen(
     sessionId: String,
+    focusPermission: Boolean,
     onBack: () -> Unit,
 ) {
+    val app = LocalContext.current.applicationContext as TahApplication
+    val vm: DetailViewModel = viewModel(
+        key = sessionId,
+        factory = TahVmFactory(app.container, sessionId),
+    )
+    val session by vm.session.collectAsStateWithLifecycle()
+    val timeline by vm.timeline.collectAsStateWithLifecycle()
+    val pending by vm.pending.collectAsStateWithLifecycle()
+    val peeking by vm.peeking.collectAsStateWithLifecycle()
+    val guiding by vm.guiding.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(timeline.size, session?.column) {
+        if (session?.column == SessionColumn.Working && timeline.isNotEmpty()) {
+            listState.animateScrollToItem(timeline.lastIndex)
+        }
+    }
+    LaunchedEffect(focusPermission, pending) {
+        if (focusPermission && pending != null) {
+            vm.peeking.value = false
+            vm.guiding.value = false
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Session $sessionId") },
+                title = { Text(session?.title ?: sessionId) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    session?.let { StatusChip(it.column, it.doneChip, Modifier.padding(end = 8.dp)) }
+                    IconButton(onClick = vm::togglePeek) {
+                        Icon(Icons.Outlined.Visibility, contentDescription = "Peek")
                     }
                 },
             )
@@ -56,68 +92,63 @@ fun SessionDetailScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(padding),
         ) {
-            Text("Timeline / stream", style = MaterialTheme.typography.titleLarge)
-            Box(
+            session?.let {
+                BudgetStrip(it, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            }
+            if (peeking && pending != null) {
+                Text(
+                    "Inspecting — run still waiting on you",
+                    color = TahNeedsYou,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(TahSurfaceBright)
+                        .padding(12.dp),
+                )
+            }
+            LazyColumn(
+                state = listState,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(TahSurfaceContainer)
-                    .border(1.dp, TahOutline, RoundedCornerShape(12.dp))
-                    .padding(16.dp),
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Column {
-                    Text(
-                        "• session started (stub)",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "• waiting for agent events…",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "• stream wire-up lands in M1",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                items(timeline, key = { it.id }) { item ->
+                    when (item) {
+                        is TimelineItem.Stream -> Text(
+                            item.text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        is TimelineItem.System -> Text(
+                            item.text,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TahNeedsYou,
+                        )
+                        is TimelineItem.Tool -> ToolCard(item.tool)
+                    }
                 }
             }
-
-            Text("Tool card zone", style = MaterialTheme.typography.titleMedium)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(TahSurfaceBright)
-                    .padding(12.dp),
-            ) {
-                ToolCardStub(
-                    toolName = "shell.exec",
-                    summary = "Placeholder — ship-gate chrome for tool approvals",
-                )
-            }
-
-            Text("Permission card zone", style = MaterialTheme.typography.titleMedium)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(TahSurfaceBright)
-                    .padding(12.dp),
-            ) {
-                PermissionCardStub(
-                    title = "File write",
-                    detail = "Placeholder — approve / reject chrome for M1",
-                )
+            if (pending != null && !peeking) {
+                if (guiding) {
+                    GuideComposer(
+                        onSend = vm::guide,
+                        onCancel = vm::cancelGuide,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                } else {
+                    PermissionCard(
+                        permission = pending!!,
+                        onReject = vm::reject,
+                        onGuide = vm::openGuide,
+                        onApprove = vm::approve,
+                        onPeek = vm::togglePeek,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
             }
         }
     }
