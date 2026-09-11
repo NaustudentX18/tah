@@ -27,6 +27,11 @@ class SettingsRepository(context: Context) {
         _settings.update { it.copy(notificationsEnabled = enabled) }
     }
 
+    fun setOnboardingComplete(complete: Boolean = true) {
+        prefs.edit().putBoolean(KEY_ONBOARD, complete).apply()
+        _settings.update { it.copy(onboardingComplete = complete) }
+    }
+
     private fun load(): UserSettings {
         val perm = runCatching {
             PermissionMode.valueOf(prefs.getString(KEY_PERM, PermissionMode.Ask.name)!!)
@@ -38,6 +43,7 @@ class SettingsRepository(context: Context) {
             permissionMode = perm,
             inputMode = input,
             notificationsEnabled = prefs.getBoolean(KEY_NOTIF, true),
+            onboardingComplete = prefs.getBoolean(KEY_ONBOARD, false),
         )
     }
 
@@ -46,5 +52,6 @@ class SettingsRepository(context: Context) {
         private const val KEY_PERM = "permission_mode"
         private const val KEY_INPUT = "input_mode"
         private const val KEY_NOTIF = "notifications"
+        private const val KEY_ONBOARD = "onboarding_complete"
     }
 }
