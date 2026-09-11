@@ -110,6 +110,7 @@ data class UserSettings(
     val permissionMode: PermissionMode = PermissionMode.Ask,
     val inputMode: InputMode = InputMode.TouchSteer,
     val notificationsEnabled: Boolean = true,
+    val onboardingComplete: Boolean = false,
 )
 
 data class SkillPack(
@@ -117,6 +118,7 @@ data class SkillPack(
     val title: String,
     val body: String,
     val enabled: Boolean = true,
+    val bundled: Boolean = true,
 )
 
 data class MemoryNote(
