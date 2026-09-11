@@ -40,6 +40,7 @@ fun DispatchScreen(
     val app = LocalContext.current.applicationContext as TahApplication
     val vm: DispatchViewModel = viewModel(factory = TahVmFactory(app.container))
     val provider by vm.provider.collectAsStateWithLifecycle()
+    val skills by vm.skills.collectAsStateWithLifecycle()
     var prompt by rememberSaveable { mutableStateOf("") }
     var skillId by rememberSaveable { mutableStateOf("general") }
     var iterations by rememberSaveable { mutableIntStateOf(8) }
@@ -74,13 +75,20 @@ fun DispatchScreen(
             )
             Text("Skill preset", style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                vm.skills.forEach { pack ->
+                skills.filter { it.enabled }.forEach { pack ->
                     FilterChip(
                         selected = skillId == pack.id,
                         onClick = { skillId = pack.id },
                         label = { Text(pack.title) },
                     )
                 }
+            }
+            if (skills.none { it.enabled }) {
+                Text(
+                    "No enabled skill packs — open Skills & Memory.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
             Text(
                 "Model · ${provider.modelId} · ${provider.kind}",
