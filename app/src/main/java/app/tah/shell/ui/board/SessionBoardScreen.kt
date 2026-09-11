@@ -48,7 +48,10 @@ import app.tah.shell.data.AgentSession
 import app.tah.shell.data.DoneChip
 import app.tah.shell.data.SessionColumn
 import app.tah.shell.ui.TahVmFactory
+import app.tah.shell.ui.components.HarnessGlyph
 import app.tah.shell.ui.components.OfflineCapabilityBadge
+import app.tah.shell.ui.components.TahEmptyState
+import androidx.compose.material3.TextButton
 import app.tah.shell.ui.components.StatusChip
 import app.tah.shell.ui.theme.TahNeedsYou
 import app.tah.shell.ui.theme.TahOutline
@@ -59,6 +62,7 @@ import app.tah.shell.ui.theme.TahSurfaceContainer
 fun SessionBoardScreen(
     onOpenSession: (String) -> Unit,
     onNewRun: () -> Unit,
+    onOpenProviders: () -> Unit = {},
 ) {
     val app = LocalContext.current.applicationContext as TahApplication
     val vm: BoardViewModel = viewModel(factory = TahVmFactory(app.container))
@@ -73,7 +77,13 @@ fun SessionBoardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Session Board") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        HarnessGlyph(size = 22.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Session Board")
+                    }
+                },
                 actions = {
                     BadgedBox(
                         badge = {
@@ -126,17 +136,30 @@ fun SessionBoardScreen(
                 }
             }
             if (rows.isEmpty()) {
-                Box(
+                val freshInstall = graph.sessions.isEmpty()
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(24.dp),
-                    contentAlignment = Alignment.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
                 ) {
-                    Text(
-                        emptyCopy(column),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    if (freshInstall) {
+                        TahEmptyState(
+                            title = "Wire a provider, then steer.",
+                            body = "Empty board. First-run calm — Dispatch when you are ready.",
+                        )
+                        TextButton(onClick = onOpenProviders) { Text("Open Providers") }
+                        TextButton(onClick = onNewRun) { Text("New run anyway") }
+                    } else {
+                        TahEmptyState(
+                            title = emptyTitle(column),
+                            body = emptyCopy(column),
+                        )
+                        if (column != SessionColumn.NeedsYou) {
+                            TextButton(onClick = onNewRun) { Text("New run") }
+                        }
+                    }
                 }
             } else {
                 LazyColumn(
@@ -196,6 +219,12 @@ private fun SessionBoardCard(session: AgentSession, onClick: () -> Unit) {
             )
         }
     }
+}
+
+private fun emptyTitle(column: SessionColumn): String = when (column) {
+    SessionColumn.Working -> "Nothing grinding"
+    SessionColumn.NeedsYou -> "Inbox zero"
+    SessionColumn.Done -> "No glory yet"
 }
 
 private fun emptyCopy(column: SessionColumn): String = when (column) {
