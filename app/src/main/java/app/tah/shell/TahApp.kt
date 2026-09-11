@@ -18,6 +18,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -31,6 +33,7 @@ import app.tah.shell.navigation.TahDestinations
 import app.tah.shell.ui.board.SessionBoardScreen
 import app.tah.shell.ui.detail.SessionDetailScreen
 import app.tah.shell.ui.dispatch.DispatchScreen
+import app.tah.shell.ui.onboard.OnboardScreen
 import app.tah.shell.ui.providers.ProvidersScreen
 import app.tah.shell.ui.settings.SettingsScreen
 import app.tah.shell.ui.skills.SkillsMemoryScreen
@@ -43,7 +46,10 @@ private data class TabItem(
 
 @Composable
 fun TahApp(deepLinkIntent: Intent? = null) {
+    val app = LocalContext.current.applicationContext as TahApplication
+    val settings by app.container.settings.settings.collectAsStateWithLifecycle()
     val navController = rememberNavController()
+    val start = if (settings.onboardingComplete) TahDestinations.BOARD else TahDestinations.ONBOARD
     val tabs = listOf(
         TabItem(TahDestinations.BOARD, "Board", Icons.Filled.Dashboard),
         TabItem(TahDestinations.DISPATCH, "Dispatch", Icons.Filled.Send),
@@ -62,6 +68,9 @@ fun TahApp(deepLinkIntent: Intent? = null) {
         if (data.scheme == "tah" && data.host == "session") {
             val id = data.pathSegments.firstOrNull() ?: return@LaunchedEffect
             val focus = data.getQueryParameter("focus").orEmpty()
+            if (!app.container.settings.current.onboardingComplete) {
+                app.container.settings.setOnboardingComplete(true)
+            }
             navController.navigate(TahDestinations.sessionDetail(id, focus))
         }
     }
@@ -95,9 +104,25 @@ fun TahApp(deepLinkIntent: Intent? = null) {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = TahDestinations.BOARD,
+            startDestination = start,
             modifier = Modifier.padding(innerPadding),
         ) {
+            composable(TahDestinations.ONBOARD) {
+                OnboardScreen(
+                    onWireProvider = {
+                        app.container.settings.setOnboardingComplete(true)
+                        navController.navigate(TahDestinations.PROVIDERS) {
+                            popUpTo(TahDestinations.ONBOARD) { inclusive = true }
+                        }
+                    },
+                    onSkipToBoard = {
+                        app.container.settings.setOnboardingComplete(true)
+                        navController.navigate(TahDestinations.BOARD) {
+                            popUpTo(TahDestinations.ONBOARD) { inclusive = true }
+                        }
+                    },
+                )
+            }
             composable(TahDestinations.BOARD) {
                 SessionBoardScreen(
                     onOpenSession = { id ->
@@ -105,6 +130,9 @@ fun TahApp(deepLinkIntent: Intent? = null) {
                     },
                     onNewRun = {
                         navController.navigate(TahDestinations.DISPATCH)
+                    },
+                    onOpenProviders = {
+                        navController.navigate(TahDestinations.PROVIDERS)
                     },
                 )
             }
