@@ -1,5 +1,6 @@
 package app.tah.shell
 
+import android.content.Intent
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dashboard
@@ -13,15 +14,19 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import app.tah.shell.navigation.TahDestinations
 import app.tah.shell.ui.board.SessionBoardScreen
 import app.tah.shell.ui.detail.SessionDetailScreen
@@ -37,7 +42,7 @@ private data class TabItem(
 )
 
 @Composable
-fun TahApp() {
+fun TahApp(deepLinkIntent: Intent? = null) {
     val navController = rememberNavController()
     val tabs = listOf(
         TabItem(TahDestinations.BOARD, "Board", Icons.Filled.Dashboard),
@@ -49,7 +54,16 @@ fun TahApp() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val showBottomBar = tabs.any { tab ->
-        currentDestination?.hierarchy?.any { it.route == tab.route } == true
+        currentDestination?.hierarchy?.any { it.route?.startsWith(tab.route) == true } == true
+    }
+
+    LaunchedEffect(deepLinkIntent) {
+        val data = deepLinkIntent?.data ?: return@LaunchedEffect
+        if (data.scheme == "tah" && data.host == "session") {
+            val id = data.pathSegments.firstOrNull() ?: return@LaunchedEffect
+            val focus = data.getQueryParameter("focus").orEmpty()
+            navController.navigate(TahDestinations.sessionDetail(id, focus))
+        }
     }
 
     Scaffold(
@@ -58,7 +72,7 @@ fun TahApp() {
                 NavigationBar {
                     tabs.forEach { tab ->
                         val selected = currentDestination?.hierarchy?.any {
-                            it.route == tab.route
+                            it.route?.startsWith(tab.route) == true
                         } == true
                         NavigationBarItem(
                             selected = selected,
@@ -89,27 +103,46 @@ fun TahApp() {
                     onOpenSession = { id ->
                         navController.navigate(TahDestinations.sessionDetail(id))
                     },
+                    onNewRun = {
+                        navController.navigate(TahDestinations.DISPATCH)
+                    },
                 )
             }
-            composable(TahDestinations.SESSION_DETAIL) { entry ->
+            composable(
+                route = TahDestinations.SESSION_DETAIL,
+                arguments = listOf(
+                    navArgument("sessionId") { type = NavType.StringType },
+                    navArgument("focus") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
+                deepLinks = listOf(
+                    navDeepLink { uriPattern = "tah://session/{sessionId}?focus={focus}" },
+                    navDeepLink { uriPattern = "tah://session/{sessionId}" },
+                ),
+            ) { entry ->
                 val id = entry.arguments?.getString("sessionId") ?: "unknown"
+                val focus = entry.arguments?.getString("focus").orEmpty()
                 SessionDetailScreen(
                     sessionId = id,
+                    focusPermission = focus == "permission",
                     onBack = { navController.popBackStack() },
                 )
             }
             composable(TahDestinations.DISPATCH) {
-                DispatchScreen()
+                DispatchScreen(
+                    onStarted = { id ->
+                        navController.navigate(TahDestinations.sessionDetail(id))
+                    },
+                    onConfigureProvider = {
+                        navController.navigate(TahDestinations.PROVIDERS)
+                    },
+                )
             }
-            composable(TahDestinations.PROVIDERS) {
-                ProvidersScreen()
-            }
-            composable(TahDestinations.SKILLS) {
-                SkillsMemoryScreen()
-            }
-            composable(TahDestinations.SETTINGS) {
-                SettingsScreen()
-            }
+            composable(TahDestinations.PROVIDERS) { ProvidersScreen() }
+            composable(TahDestinations.SKILLS) { SkillsMemoryScreen() }
+            composable(TahDestinations.SETTINGS) { SettingsScreen() }
         }
     }
 }

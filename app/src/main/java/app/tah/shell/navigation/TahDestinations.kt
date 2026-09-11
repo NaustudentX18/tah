@@ -6,7 +6,8 @@ object TahDestinations {
     const val PROVIDERS = "providers"
     const val SKILLS = "skills"
     const val SETTINGS = "settings"
-    const val SESSION_DETAIL = "session/{sessionId}"
+    const val SESSION_DETAIL = "session/{sessionId}?focus={focus}"
 
-    fun sessionDetail(sessionId: String): String = "session/$sessionId"
+    fun sessionDetail(sessionId: String, focus: String = ""): String =
+        "session/$sessionId?focus=$focus"
 }
