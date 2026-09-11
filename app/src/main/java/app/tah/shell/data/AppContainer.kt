@@ -8,20 +8,23 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
-class AppContainer(app: Application) {
+class AppContainer(val app: Application) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val settings = SettingsRepository(app)
     val providers = ProviderRepository(app)
     val sessions = SessionRepository(app)
     val memory = MemoryStore(app)
+    val skills = SkillStore(app)
     val notifier = NeedsYouNotifier(app)
     val client = OpenAiCompatClient()
     val loop = AgentLoop(
+        app = app,
         sessions = sessions,
         providers = providers,
         settings = settings,
         memory = memory,
+        skills = skills,
         notifier = notifier,
         client = client,
         scope = scope,
