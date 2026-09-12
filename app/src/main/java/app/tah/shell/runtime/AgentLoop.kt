@@ -1,6 +1,7 @@
 package app.tah.shell.runtime
 
 import android.app.Application
+import app.tah.shell.data.AgentRole
 import app.tah.shell.data.AgentSession
 import app.tah.shell.data.ChatMessage
 import app.tah.shell.data.DoneChip
@@ -120,10 +121,10 @@ class AgentLoop(
         val messages = mutableListOf(
             ChatMessage(
                 "system",
-                "You are TAH, a phone-first agent harness. Prefer short status. " +
-                    "Do not pretend tools ran without a card. " +
-                    "Real tools: memory.write, fs.read/write (app workspace), web.fetch (Ask + GET), " +
-                    "shell.exec allowlist (date/echo/ls). No /bin/sh. No shared storage.\n\n" +
+                "You are TAH, a phone-first agent harness and swarm coordinator. Prefer concise status. " +
+                    "Real tools: memory.write, fs.read/write/list (workspace & device files), web.fetch (HTTP GET), " +
+                    "shell.exec (real process shell & allowlist), agent.spawn (role, prompt). " +
+                    "Current role: ${session0.role.name}.\n\n" +
                     "Active skill (${skill.title}):\n${skill.body}\n\n" +
                     "Enabled packs:\n$enabledSkills\n\nMemory:\n$memoryText\n\n" +
                     "Workspace:\n${workspace.snapshotText()}",
@@ -131,8 +132,19 @@ class AgentLoop(
             ChatMessage("user", session0.prompt),
         )
 
+        val nativeToolCalls = mutableListOf<ToolCall>()
         if (live) {
-            streamLive(sessionId, messages)
+            streamLive(sessionId, messages) { toolCallReady ->
+                nativeToolCalls += ToolCall(
+                    id = SessionRepository.newId(),
+                    sessionId = sessionId,
+                    name = toolCallReady.name,
+                    target = toolCallReady.target,
+                    argsSummary = toolCallReady.argsSummary,
+                    risk = toolCallReady.risk,
+                    status = ToolStatus.Pending,
+                )
+            }
         } else {
             streamDemoText(
                 sessionId,
@@ -152,7 +164,11 @@ class AgentLoop(
             }
             sessions.incrementIteration(sessionId)
 
-            val tool = ToolPlanner.next(latest, priorNames, SessionRepository.newId())
+            val tool = if (nativeToolCalls.isNotEmpty()) {
+                nativeToolCalls.removeAt(0)
+            } else {
+                ToolPlanner.next(latest, priorNames, SessionRepository.newId())
+            }
             if (tool == null) {
                 sessions.appendSystem(sessionId, "No further tools planned. Wrapping the run.")
                 break
@@ -165,7 +181,12 @@ class AgentLoop(
             val decision = gate(latest, tool)
             when (decision) {
                 GateDecision.Approve -> {
-                    val outcome = runtime.apply(tool, latest.prompt)
+                    val outcome = if (tool.name == "agent.spawn") {
+                        val msg = spawnSubagent(sessionId, tool.target, tool.argsSummary)
+                        ToolRuntime.Outcome(msg, true)
+                    } else {
+                        runtime.apply(tool, latest.prompt)
+                    }
                     sessions.upsertTool(
                         tool.copy(
                             status = ToolStatus.Succeeded,
@@ -203,7 +224,12 @@ class AgentLoop(
                 }
                 is GateDecision.Guide -> {
                     lastGuide = decision.instruction
-                    val outcome = runtime.apply(tool, "${latest.prompt}\nGuide: ${decision.instruction}")
+                    val outcome = if (tool.name == "agent.spawn") {
+                        val msg = spawnSubagent(sessionId, tool.target, "${tool.argsSummary}\nGuide: ${decision.instruction}")
+                        ToolRuntime.Outcome(msg, true)
+                    } else {
+                        runtime.apply(tool, "${latest.prompt}\nGuide: ${decision.instruction}")
+                    }
                     sessions.upsertTool(
                         tool.copy(
                             status = ToolStatus.Succeeded,
@@ -274,14 +300,50 @@ class AgentLoop(
         }
     }
 
-    private suspend fun streamLive(sessionId: String, messages: List<ChatMessage>) {
+    private suspend fun streamLive(
+        sessionId: String,
+        messages: List<ChatMessage>,
+        onToolReady: ((OpenAiCompatClient.StreamEvent.ToolCallReady) -> Unit)? = null,
+    ) {
         val snap = providers.current
-        client.streamChat(snap, providers.apiKey(), messages)
+        client.streamChatWithEvents(snap, providers.apiKey(), messages)
             .catch { e ->
                 sessions.appendSystem(sessionId, "Provider stream failed: ${e.message}. Falling back to demo tokens.")
                 streamDemoText(sessionId, "Offline fallback after provider error.")
             }
-            .collect { token -> sessions.appendToken(sessionId, token) }
+            .collect { event ->
+                when (event) {
+                    is OpenAiCompatClient.StreamEvent.Token -> {
+                        sessions.appendToken(sessionId, event.text)
+                    }
+                    is OpenAiCompatClient.StreamEvent.ToolCallReady -> {
+                        onToolReady?.invoke(event)
+                    }
+                }
+            }
+    }
+
+    private fun spawnSubagent(parentSessionId: String, roleName: String, prompt: String): String {
+        val parent = sessions.session(parentSessionId)
+        val role = runCatching { AgentRole.valueOf(roleName) }
+            .getOrDefault(AgentRole.Planner)
+        val subSessionId = SessionRepository.newId()
+        val subSession = AgentSession(
+            id = subSessionId,
+            title = "[$role] ${prompt.take(30)}",
+            prompt = prompt,
+            skillId = parent?.skillId,
+            modelId = parent?.modelId ?: "demo-offline",
+            providerKind = parent?.providerKind ?: ProviderKind.Demo,
+            column = SessionColumn.Working,
+            startedAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
+            role = role,
+            parentSessionId = parentSessionId,
+        )
+        sessions.upsertSession(subSession)
+        start(subSessionId)
+        return "Spawned $role subagent session on the Board."
     }
 
     private suspend fun streamDemoText(sessionId: String, text: String) {

@@ -187,7 +187,9 @@ class SessionRepository(context: Context) {
                     .put("updatedAt", s.updatedAt)
                     .put("lastToolName", s.lastToolName ?: JSONObject.NULL)
                     .put("pendingPermissionId", s.pendingPermissionId ?: JSONObject.NULL)
-                    .put("isDemoSeed", s.isDemoSeed),
+                    .put("isDemoSeed", s.isDemoSeed)
+                    .put("role", s.role.name)
+                    .put("parentSessionId", s.parentSessionId ?: JSONObject.NULL),
             )
         }
         val timelines = JSONObject()
@@ -268,6 +270,9 @@ class SessionRepository(context: Context) {
                 lastToolName = o.optString("lastToolName").ifBlank { null },
                 pendingPermissionId = o.optString("pendingPermissionId").ifBlank { null },
                 isDemoSeed = o.optBoolean("isDemoSeed"),
+                role = runCatching { AgentRole.valueOf(o.optString("role", "Orchestrator")) }
+                    .getOrDefault(AgentRole.Orchestrator),
+                parentSessionId = o.optString("parentSessionId").ifBlank { null },
             )
         }
         val timelines = mutableMapOf<String, List<TimelineItem>>()

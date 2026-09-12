@@ -1,54 +1,87 @@
-# TAH guide
+# 📖 TAH User & Developer Guide
 
-## Install (no local SDK)
+Welcome to the **TAH (The Agent Harness)** guide! This walkthrough covers how to set up your phone, steer agent swarms on the Signal Deck, manage permissions, and develop new tools.
 
-1. Open [Actions](https://github.com/NaustudentX18/tah/actions) on this repo.
-2. Open the latest green **Android debug APK** run.
-3. Download the **tah-debug-apk** artifact.
-4. On the phone: allow install from that source, or `adb install -r app-debug.apk`.
+---
 
-Tagged builds (`v*`) also attach `tah-debug.apk` to a GitHub Release.
+## 🚀 Installation & First Run
 
-## First run
+### 📥 1. Getting the App
+- **From GitHub Releases / Actions:** Download the latest `app-debug.apk` and sideload it to your phone using `adb install -r app-debug.apk` or tap the APK in your phone's file manager.
+- **From Source:** Run `.\scripts\build.ps1 -Install` with your phone connected via USB.
 
-1. Onboarding → **Wire a provider** or skip.
-2. Providers: leave **Demo** to try the board offline, or paste a BYOK base URL + key, or an Ollama LAN URL.
-3. Probe before you trust the badge.
-4. Dispatch a short prompt. Watch the Board, not a chat list.
+### ⚙️ 2. Provider Setup
+TAH connects directly from your phone to your AI provider of choice without any middleman proxy:
+1. Open **Settings → Providers**.
+2. **Demo (Offline):** Instant on-device simulations. Perfect for trying the UI without network or API keys.
+3. **Ollama on LAN:** Run open-source models on your local machine (`http://192.168.x.x:11434/v1`). Great for private on-premise swarms!
+4. **BYOK (OpenAI / Groq / OpenRouter / DeepSeek):** Enter your standard OpenAI-compatible Base URL and API key.
+5. Tap **Probe** to verify connectivity and load available model IDs.
 
-## Permission rules (locked)
+---
 
-- Default mode is **Ask**.
-- **Reject** ends that tool. Guide is optional.
-- **Guide** injects text and the loop may continue if budget remains.
-- **Allow edits** can auto-allow write-class tools. **Exec stays Ask.**
-- Dismissing a Needs-you notification does **not** approve the tool.
+## 📋 The Signal Deck: Board-First Workflow
 
-## What actually runs
+Unlike traditional AI chat apps that produce endless text logs, TAH organizes your agent's work onto a tactile, glanceable board:
 
-| Tool | After Approve |
-|------|----------------|
-| `memory.write` | Creates a real note under Skills & Memory |
-| `fs.read` / `fs.write` | App-private workspace file (Skills → Workspace) |
-| `web.fetch` | HTTP GET of the URL on the card (32 KiB cap) |
-| `shell.exec` | `date` / `echo` / `ls` in-process; otherwise refused |
+- 🔵 **Working:** Active agents currently reasoning, streaming thoughts, or executing approved tool steps.
+- 🟡 **Needs You:** Execution pauses here whenever a tool requires human oversight. A notification alerts you immediately.
+- 🟢 **Done:** Finished missions marked with status chips (`Done`, `Failed`, `Budget hit`, or `Cancelled`).
 
-## Skills
+### 🎴 How to Handle "Needs You" Cards
+When a card appears in **Needs You**:
+- ✅ **Approve:** Tap to allow the exact action shown on the card to execute on your device.
+- ❌ **Reject:** Refuses this tool call immediately. The agent will close the turn or pivot.
+- ✍️ **Guide:** Type custom feedback or corrections. For example: *"Don't delete that file, rename it to backup.txt instead."* The agent injects your guidance directly into its thought loop!
 
-- Bundled packs ship in the APK.
-- **Import from file** uses the system document picker (markdown / plain text).
-- Paste import still works.
-- Enabled packs are injected into the system prompt at run start.
+---
 
-## Battery / OEM
+## 🛠️ Tool Arsenal
 
-The foreground service raises priority **while a run is active**. It does not survive aggressive OEM killers and does not claim to. Settings → About lists the usual steps (unrestricted battery, lock the app in recents) without promising immortality.
+Every action the agent takes is backed by real execution:
 
-## Local build
+| Tool | Action & Scope | Permission Gate |
+|---|---|---|
+| `shell.exec` | Dual-mode: fast built-ins (`date`, `echo`, `ls`) or full `/system/bin/sh` process commands with stdout/stderr capture and timeout limits. | **Always Ask** |
+| `fs.read` | Reads files from either the app workspace or explicit device paths (e.g. `/sdcard/Download/data.csv`). | Ask / Allow Reads |
+| `fs.write` | Writes text to workspace or device filesystem with byte counts and atomic save. | Ask / Allow Edits |
+| `fs.list` | Inspects directory contents and file sizes. | Ask / Allow Reads |
+| `web.fetch` | Performs an HTTP GET request of the URL shown on the card (capped at 32 KiB). | **Always Ask** |
+| `memory.write` | Saves persistent knowledge notes to Skills & Memory that persist across reboots. | Auto or Ask |
+| `agent.spawn` | Spawns a specialized subagent on the board (Planner, Coder, Researcher, Verifier). | Ask / Allow Edits |
 
-Android Studio Giraffe+ / Koala, JDK 17, Gradle 8.9 (CI installs Gradle; this tree may not vendor `gradle/wrapper/gradle-wrapper.jar`).
+---
 
-```bash
-gradle :app:assembleDebug
-# APK: app/build/outputs/apk/debug/
+## 🤖 Multi-Agent Swarm Modes
+
+TAH supports specialized agent roles that can collaborate:
+- **👑 Orchestrator:** The primary session that decomposes your goal and steers the swarm.
+- **📐 Planner:** Formulates step-by-step roadmaps and task lists.
+- **💻 Coder:** Executes shell scripts, compiles code, and manipulates files.
+- **🔍 Researcher:** Browses web endpoints, parses documentation, and gathers facts.
+- **✅ Verifier:** Validates results, checks outputs, and runs test scripts.
+
+---
+
+## 🔋 Battery & Background Persistence
+
+To keep agents running while your phone is locked:
+1. **Foreground Service:** Displays an active notification with a direct "Stop" action.
+2. **CPU WakeLock:** Acquires a partial `PowerManager.WakeLock` during active loops to prevent Android from putting the CPU to sleep mid-run.
+3. **Battery Optimization Exemption:** Go to your phone's App Info → Battery → set to **Unrestricted** to prevent aggressive OEM killers from stopping the service.
+
+---
+
+## 🧪 Developer Commands
+
+From your terminal in the repository root:
+```powershell
+# Run the complete unit test suite
+.\scripts\test.ps1
+
+# Build the debug APK
+.\scripts\build.ps1
+
+# Check Android CLI status
+android info
 ```

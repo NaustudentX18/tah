@@ -21,6 +21,14 @@ enum class ToolStatus {
 
 enum class ToolRisk { Read, Write, Exec, Network }
 
+enum class AgentRole {
+    Orchestrator,
+    Planner,
+    Researcher,
+    Coder,
+    Verifier,
+}
+
 data class AgentSession(
     val id: String,
     val title: String,
@@ -38,6 +46,8 @@ data class AgentSession(
     val lastToolName: String? = null,
     val pendingPermissionId: String? = null,
     val isDemoSeed: Boolean = false,
+    val role: AgentRole = AgentRole.Orchestrator,
+    val parentSessionId: String? = null,
 )
 
 data class ToolCall(

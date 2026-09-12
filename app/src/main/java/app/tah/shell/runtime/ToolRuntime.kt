@@ -8,14 +8,17 @@ import app.tah.shell.data.WorkspaceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+import java.io.File
+
 /**
  * Applies approved tools.
  *
  * Real effects:
  * - memory.write — MemoryStore note
- * - fs.read / fs.write — app-private workspace (not shared storage)
+ * - fs.read / fs.write — app-private workspace or device filesystem paths
+ * - fs.list — list workspace or device directories
  * - web.fetch — HTTP GET of the card target
- * - shell.exec — in-process allowlist only
+ * - shell.exec — real process shell or in-process allowlist
  */
 class ToolRuntime(
     private val memory: MemoryStore,
@@ -32,6 +35,7 @@ class ToolRuntime(
             "memory.write" -> writeMemory(tool, prompt)
             "fs.read" -> readWorkspace(tool)
             "fs.write" -> writeWorkspace(tool, prompt)
+            "fs.list" -> listFiles(tool)
             "web.fetch" -> fetch(tool, prompt)
             "shell.exec" -> exec(tool)
             else -> Outcome(
@@ -59,24 +63,79 @@ class ToolRuntime(
     }
 
     private fun readWorkspace(tool: ToolCall): Outcome {
-        val name = WorkspaceNames.sanitize(tool.target)
+        val target = tool.target.trim()
+        val isExplicitPath = target.startsWith("/") || target.startsWith("./")
+        val file = if (isExplicitPath) File(target) else null
+
+        if (file != null) {
+            return if (!file.exists()) {
+                Outcome("File ${file.absolutePath} does not exist.", false)
+            } else if (!file.canRead()) {
+                Outcome("Permission denied reading ${file.absolutePath}.", false)
+            } else {
+                val text = runCatching { file.readText().take(WorkspaceStore.MAX_CHARS) }.getOrNull()
+                if (text == null) {
+                    Outcome("Failed to read ${file.absolutePath}.", false)
+                } else {
+                    Outcome("Read ${file.absolutePath} (${text.length} chars):\n${text.take(800)}", true)
+                }
+            }
+        }
+
+        val name = WorkspaceNames.sanitize(target)
         val body = workspace.read(name)
         return if (body.isBlank()) {
-            Outcome("Workspace file $name is empty or missing. App-private dir only — not phone storage.", true)
+            Outcome("Workspace file $name is empty or missing.", true)
         } else {
             Outcome("Read workspace/$name (${body.length} chars):\n${body.take(800)}", true)
         }
     }
 
     private fun writeWorkspace(tool: ToolCall, prompt: String): Outcome {
-        val name = WorkspaceNames.sanitize(tool.target.ifBlank { WorkspaceNames.filenameFromPrompt(prompt) })
-        val body = buildString {
-            append("# ").append(name).append('\n')
-            append("Written by TAH workspace (app-private).\n\n")
-            append(prompt.take(2_000).ifBlank { tool.argsSummary })
+        val target = tool.target.trim()
+        val isExplicitPath = target.startsWith("/") || target.startsWith("./")
+        val file = if (isExplicitPath) File(target) else null
+
+        val content = if (tool.argsSummary.isNotBlank() && !tool.argsSummary.startsWith("write ")) {
+            tool.argsSummary
+        } else {
+            buildString {
+                append("# ").append(target).append('\n')
+                append("Written by TAH Agent.\n\n")
+                append(prompt.take(2_000))
+            }
         }
-        val file = workspace.write(name, body)
-        return Outcome("Wrote workspace/${file.name} (${file.bytes} bytes). Not shared storage.", true)
+
+        if (file != null) {
+            return try {
+                file.parentFile?.mkdirs()
+                file.writeText(content.take(WorkspaceStore.MAX_CHARS))
+                Outcome("Wrote ${file.absolutePath} (${file.length()} bytes).", true)
+            } catch (t: Throwable) {
+                Outcome("Failed writing to ${file.absolutePath}: ${t.message}", false)
+            }
+        }
+
+        val name = WorkspaceNames.sanitize(target.ifBlank { WorkspaceNames.filenameFromPrompt(prompt) })
+        val resultFile = workspace.write(name, content)
+        return Outcome("Wrote workspace/${resultFile.name} (${resultFile.bytes} bytes).", true)
+    }
+
+    private fun listFiles(tool: ToolCall): Outcome {
+        val target = tool.target.trim()
+        val dir = if (target.isNotBlank() && target != "workspace") File(target) else workspace.rootDir
+        if (!dir.exists()) {
+            return Outcome("Directory does not exist: ${dir.absolutePath}", false)
+        }
+        val entries = dir.listFiles()?.take(100)?.map {
+            if (it.isDirectory) "${it.name}/" else "${it.name} (${it.length()} bytes)"
+        }?.sorted() ?: emptyList()
+
+        return Outcome(
+            if (entries.isEmpty()) "(empty directory: ${dir.absolutePath})"
+            else "Directory ${dir.absolutePath}:\n" + entries.joinToString("\n"),
+            true,
+        )
     }
 
     private fun fetch(tool: ToolCall, prompt: String): Outcome {

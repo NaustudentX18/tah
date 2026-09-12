@@ -15,6 +15,7 @@ data class WorkspaceFile(
 
 class WorkspaceStore(context: Context) {
     private val root = File(context.applicationContext.filesDir, "workspace").apply { mkdirs() }
+    val rootDir: File get() = root
     private val _files = MutableStateFlow(listNow())
     val files: StateFlow<List<WorkspaceFile>> = _files.asStateFlow()
 

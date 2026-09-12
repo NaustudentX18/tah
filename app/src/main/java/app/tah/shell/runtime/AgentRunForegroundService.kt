@@ -11,30 +11,35 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import android.os.PowerManager
 import app.tah.shell.MainActivity
 
 /**
- * Lightweight foreground service while at least one agent run is active.
+ * Foreground service while at least one agent run is active.
  *
- * Honest limits: this raises process priority and shows an ongoing notification.
- * It does **not** claim immortality — OEM battery killers can still stop the process.
- * Session metadata + Needs-you state survive in prefs either way.
+ * Acquires a partial WakeLock to keep the CPU awake during active multi-tool runs,
+ * presents an ongoing notification with direct action controls, and supports
+ * battery optimization exclusion.
  */
 class AgentRunForegroundService : Service() {
+    private var wakeLock: PowerManager.WakeLock? = null
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                releaseWakeLock()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
             }
             else -> {
                 ensureChannel()
-                val title = intent?.getStringExtra(EXTRA_TITLE) ?: "TAH run active"
+                acquireWakeLock()
+                val title = intent?.getStringExtra(EXTRA_TITLE) ?: "TAH · run active"
                 val body = intent?.getStringExtra(EXTRA_BODY)
-                    ?: "Foreground while a run is live. OEM killers can still stop agents."
+                    ?: "Active multi-tool agent loop running with WakeLock."
                 val notification = buildNotification(title, body)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     startForeground(
@@ -48,6 +53,30 @@ class AgentRunForegroundService : Service() {
             }
         }
         return START_STICKY
+    }
+
+    override fun onDestroy() {
+        releaseWakeLock()
+        super.onDestroy()
+    }
+
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "tah:agent_run_wakelock",
+        ).apply {
+            setReferenceCounted(false)
+            acquire(30 * 60_000L) // 30 minutes safe ceiling
+        }
+    }
+
+    private fun releaseWakeLock() {
+        if (wakeLock?.isHeld == true) {
+            runCatching { wakeLock?.release() }
+        }
+        wakeLock = null
     }
 
     private fun buildNotification(title: String, body: String): Notification {

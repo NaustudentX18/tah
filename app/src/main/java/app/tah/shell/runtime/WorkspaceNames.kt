@@ -7,8 +7,11 @@ object WorkspaceNames {
     private val allowed = Regex("^[A-Za-z0-9._-]{1,64}$")
 
     fun sanitize(raw: String, fallback: String = "notes.md"): String {
-        val base = raw.substringAfterLast('/').substringAfterLast('\\').trim()
-        val candidate = if (allowed.matches(base)) base else fallback
+        val trimmed = raw.trim()
+        if (trimmed.contains("..") || trimmed.contains('/') || trimmed.contains('\\')) {
+            return fallback
+        }
+        val candidate = if (allowed.matches(trimmed)) trimmed else fallback
         return if (candidate == "." || candidate == "..") fallback else candidate
     }
 
