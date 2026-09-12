@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class SkillsViewModel(private val container: AppContainer) : ViewModel() {
     val packs = container.skills.packs
     val notes = container.memory.notes
+    val workspace = container.workspace.files
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -68,4 +69,20 @@ class SkillsViewModel(private val container: AppContainer) : ViewModel() {
         container.memory.delete(id)
         _message.value = "Note deleted."
     }
+
+    fun addWorkspaceFile(name: String, body: String) {
+        if (body.isBlank()) {
+            _message.value = "Workspace file needs a body."
+            return
+        }
+        val file = container.workspace.write(name.ifBlank { "notes.md" }, body)
+        _message.value = "Wrote workspace/${file.name}."
+    }
+
+    fun deleteWorkspaceFile(name: String) {
+        container.workspace.delete(name)
+        _message.value = "Removed workspace/$name."
+    }
+
+    fun workspacePreview(name: String): String = container.workspace.read(name)
 }

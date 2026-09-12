@@ -14,6 +14,7 @@ import app.tah.shell.data.SettingsRepository
 import app.tah.shell.data.SkillStore
 import app.tah.shell.data.ToolCall
 import app.tah.shell.data.ToolStatus
+import app.tah.shell.data.WorkspaceStore
 import app.tah.shell.notify.NeedsYouNotifier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -31,13 +32,14 @@ class AgentLoop(
     private val settings: SettingsRepository,
     private val memory: MemoryStore,
     private val skills: SkillStore,
+    private val workspace: WorkspaceStore,
     private val notifier: NeedsYouNotifier,
     private val client: OpenAiCompatClient,
     private val scope: CoroutineScope,
 ) {
     private val gates = ConcurrentHashMap<String, CompletableDeferred<GateDecision>>()
     private val jobs = ConcurrentHashMap<String, Job>()
-    private val runtime = ToolRuntime(memory)
+    private val runtime = ToolRuntime(memory, workspace)
 
     sealed class GateDecision {
         data object Approve : GateDecision()
@@ -87,6 +89,15 @@ class AgentLoop(
 
     fun anyRunning(): Boolean = jobs.values.any { it.isActive }
 
+    fun cancel(sessionId: String) {
+        gates.remove(sessionId)?.cancel()
+        jobs[sessionId]?.cancel()
+        sessions.clearPending(sessionId, backToWorking = false)
+        notifier.cancel(sessionId)
+        sessions.appendSystem(sessionId, "You stopped the run.")
+        sessions.markDone(sessionId, DoneChip.Cancelled)
+    }
+
     private suspend fun runSession(sessionId: String) {
         val session0 = sessions.session(sessionId) ?: return
         sessions.updateSession(sessionId) { it.copy(column = SessionColumn.Working) }
@@ -111,9 +122,11 @@ class AgentLoop(
                 "system",
                 "You are TAH, a phone-first agent harness. Prefer short status. " +
                     "Do not pretend tools ran without a card. " +
-                    "memory.write is the only tool that persists on-device today.\n\n" +
+                    "Real tools: memory.write, fs.read/write (app workspace), web.fetch (Ask + GET), " +
+                    "shell.exec allowlist (date/echo/ls). No /bin/sh. No shared storage.\n\n" +
                     "Active skill (${skill.title}):\n${skill.body}\n\n" +
-                    "Enabled packs:\n$enabledSkills\n\nMemory:\n$memoryText",
+                    "Enabled packs:\n$enabledSkills\n\nMemory:\n$memoryText\n\n" +
+                    "Workspace:\n${workspace.snapshotText()}",
             ),
             ChatMessage("user", session0.prompt),
         )

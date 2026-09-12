@@ -23,24 +23,27 @@ Most agent apps on a phone collapse into a transcript and then either refuse to 
 
 ## What it does
 
-| You see | What is true in 0.4.0-m3 |
+| You see | What is true in 0.5.0-m4 |
 |---------|---------------------------|
 | Demo or live token stream | Demo is on-device. Live is your BYOK or Ollama LAN OpenAI-compatible endpoint. No TAH proxy. |
-| Multi-tool loop | Planner queues a short sequence (for example `fs.write` then `memory.write`) until wrap-up, reject, or budget. |
-| `memory.write` | **Actually persists** a note under Skills & Memory. The next run reads it. |
-| Other tools (`fs.*`, `web.fetch`, `shell.exec`) | **Receipt only.** The card exists. The phone file, network scrape, or shell does not. |
-| Skills | Bundled markdown, paste, and the system file picker. |
+| Multi-tool loop | Planner queues a short sequence until wrap-up, reject, stop, or budget. |
+| `memory.write` | Persists a note under Skills & Memory. |
+| `fs.read` / `fs.write` | Persist under the **app-private workspace**. Not shared phone storage. Visible on Skills → Workspace. |
+| `web.fetch` | After Ask, HTTP GET of the URL on the card. 32 KiB cap. |
+| `shell.exec` | In-process `date`, `echo`, `ls`. Anything else is refused. No `/bin/sh`. |
+| Skills | Bundled markdown, paste, system file picker, workspace files. |
+| Stop | Session detail stop control. Cancelled chip on Done. |
 | Foreground notice | Up while a run is active. Not immortal. OEM killers still win. |
 
 Package: `app.tah.shell`  
-Version: `0.4.0-m3` (versionCode 4)  
+Version: `0.5.0-m4` (versionCode 5)  
 minSdk 26 · compileSdk 35 · Kotlin · Jetpack Compose · Material 3
 
 ## What it does not do
 
 Do not read this as a desktop agent or a Termux replacement.
 
-- No real device filesystem or shell.
+- No shared-storage filesystem and no `/bin/sh`. Workspace + allowlist only.
 - No Play Store build in this milestone.
 - No multi-agent swarm inside the app.
 - No claim that the model emits native tool-call JSON. The planner is prompt + prior-tool heuristics.

@@ -51,4 +51,12 @@ class DetailViewModel(
     fun cancelGuide() {
         guiding.value = false
     }
+
+    fun stopRun() {
+        loop.cancel(sessionId)
+        guiding.value = false
+        peeking.value = false
+    }
+
+    fun isLive(): Boolean = loop.isRunning(sessionId)
 }

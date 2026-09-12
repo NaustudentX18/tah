@@ -1,30 +1,27 @@
-# TAH M3 progress (0.4.0-m3)
+# TAH M4 progress (0.5.0-m4)
 
 ## Ship gate
 
-Board + streaming tool cards + permission cards remain wired. This is **not** a chat-only shell.
+Board + streaming tool cards + permission cards remain wired. Tools that the product advertises now have a real, labeled effect inside the contract.
 
-## M3 landed
+## M4 landed
 
 | Goal | Status |
 |------|--------|
-| Multi-tool loop | Planner sequences 1–2 tools per prompt family until wrap-up, reject, or budget |
-| Honest runtime | `memory.write` persists a note; fs/web/shell stay labeled receipts |
-| SAF skill import | System document picker + existing paste import |
-| Docs | README sells without lying; GUIDE / SPEC / AC updated |
-| Version | `0.4.0-m3` (versionCode 4) |
+| Workspace files | `fs.read` / `fs.write` persist under app-private `filesDir/workspace` |
+| Live fetch | `web.fetch` does an Ask-gated HTTP GET of the card URL (32 KiB cap) |
+| Shell | In-process allowlist: `date`, `echo`, `ls`. Anything else refused. No `/bin/sh` |
+| Stop | Session detail stop control → Cancelled chip |
+| Tests | JVM unit tests on planner, policy, URL + names; CI runs them |
+| Version | `0.5.0-m4` (versionCode 5) |
 
-## Works on device
+## Still not this product
 
-Same M2 board, dispatch, providers, Needs-you, FG service — plus the loop no longer dies after a single tool.
-
-## Still demo / receipt
-
-- Device FS and shell
-- Live web scrape
-- Native model function-calling JSON
+- Shared / external device filesystem
+- Unrestricted shell
+- Native model function-calling JSON (planner is still heuristic)
 - Mid-tool HTTP resume after process death
+- Multi-agent swarm
+- Play Store
 
-## Locked rules honored
-
-`app.tah.shell` · display **TAH** · Signal Deck · Failed = chip on Done · Reject ends tool · Guide independent · Allow edits ≠ exec · Touch Steer default · no third-party marks
+See [docs/ROADMAP.md](docs/ROADMAP.md).

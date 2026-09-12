@@ -29,9 +29,9 @@ Tagged builds (`v*`) also attach `tah-debug.apk` to a GitHub Release.
 | Tool | After Approve |
 |------|----------------|
 | `memory.write` | Creates a real note under Skills & Memory |
-| `fs.read` / `fs.write` | Receipt card only — no device file |
-| `web.fetch` | Receipt card only — no scrape |
-| `shell.exec` | Receipt card only — no shell |
+| `fs.read` / `fs.write` | App-private workspace file (Skills → Workspace) |
+| `web.fetch` | HTTP GET of the URL on the card (32 KiB cap) |
+| `shell.exec` | `date` / `echo` / `ls` in-process; otherwise refused |
 
 ## Skills
 

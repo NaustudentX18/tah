@@ -12,8 +12,8 @@ android {
         applicationId = "app.tah.shell"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4.0-m3"
+        versionCode = 5
+        versionName = "0.5.0-m4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -56,6 +56,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.4")
     implementation("androidx.security:security-crypto:1.0.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    testImplementation("junit:junit:4.13.2")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

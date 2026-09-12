@@ -53,6 +53,7 @@ fun SkillsMemoryScreen() {
     val vm: SkillsViewModel = viewModel(factory = TahVmFactory(app.container))
     val packs by vm.packs.collectAsStateWithLifecycle()
     val notes by vm.notes.collectAsStateWithLifecycle()
+    val workspace by vm.workspace.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
 
@@ -72,6 +73,7 @@ fun SkillsMemoryScreen() {
             TabRow(selectedTabIndex = tab) {
                 Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Skills") })
                 Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Memory") })
+                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Workspace") })
             }
             message?.let {
                 Text(
@@ -87,7 +89,8 @@ fun SkillsMemoryScreen() {
             }
             when (tab) {
                 0 -> SkillsTab(packs = packs, vm = vm)
-                else -> MemoryTab(notes = notes, vm = vm)
+                1 -> MemoryTab(notes = notes, vm = vm)
+                else -> WorkspaceTab(files = workspace, vm = vm)
             }
         }
     }
@@ -299,5 +302,81 @@ private fun MemoryTab(notes: List<MemoryNote>, vm: SkillsViewModel) {
                 ) { Text("Cancel") }
             }
         }
+    }
+}
+
+@Composable
+private fun WorkspaceTab(
+    files: List<app.tah.shell.data.WorkspaceFile>,
+    vm: SkillsViewModel,
+) {
+    var name by rememberSaveable { mutableStateOf("notes.md") }
+    var body by rememberSaveable { mutableStateOf("") }
+    var preview by rememberSaveable { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            "App-private files under the TAH workspace. fs.read / fs.write use this folder. Not shared phone storage.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (files.isEmpty()) {
+            TahEmptyState(
+                title = "Workspace empty",
+                body = "Dispatch a write, or create a file here. Agents see this list at run start.",
+            )
+        } else {
+            files.forEach { file ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, TahOutline, RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(file.name, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "${file.bytes} bytes",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row {
+                        TextButton(onClick = { preview = vm.workspacePreview(file.name) }) { Text("Preview") }
+                        TextButton(onClick = { vm.deleteWorkspaceFile(file.name) }) { Text("Delete") }
+                    }
+                }
+            }
+        }
+        preview?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall)
+        }
+        HorizontalDivider()
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Filename") },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = body,
+            onValueChange = { body = it },
+            label = { Text("Contents") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 4,
+        )
+        Button(
+            onClick = {
+                vm.addWorkspaceFile(name, body)
+                body = ""
+            },
+            enabled = body.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Write workspace file") }
     }
 }

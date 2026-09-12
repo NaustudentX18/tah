@@ -30,6 +30,7 @@ fun StatusChip(
         column == SessionColumn.NeedsYou -> "Needs you" to TahNeedsYou
         doneChip == DoneChip.Failed -> "Failed" to TahReject
         doneChip == DoneChip.BudgetHit -> "Budget hit" to TahNeedsYou
+        doneChip == DoneChip.Cancelled -> "Cancelled" to TahReject
         else -> "Done" to TahSuccess
     }
     Chip(label, bg, modifier)

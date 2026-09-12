@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -82,6 +83,11 @@ fun SessionDetailScreen(
                 },
                 actions = {
                     session?.let { StatusChip(it.column, it.doneChip, Modifier.padding(end = 8.dp)) }
+                    if (session?.column == SessionColumn.Working || session?.column == SessionColumn.NeedsYou) {
+                        IconButton(onClick = vm::stopRun) {
+                            Icon(Icons.Outlined.Stop, contentDescription = "Stop run")
+                        }
+                    }
                     IconButton(onClick = vm::togglePeek) {
                         Icon(Icons.Outlined.Visibility, contentDescription = "Peek")
                     }

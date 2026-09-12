@@ -16,6 +16,7 @@ class AppContainer(val app: Application) {
     val sessions = SessionRepository(app)
     val memory = MemoryStore(app)
     val skills = SkillStore(app)
+    val workspace = WorkspaceStore(app)
     val notifier = NeedsYouNotifier(app)
     val client = OpenAiCompatClient()
     val loop = AgentLoop(
@@ -25,6 +26,7 @@ class AppContainer(val app: Application) {
         settings = settings,
         memory = memory,
         skills = skills,
+        workspace = workspace,
         notifier = notifier,
         client = client,
         scope = scope,

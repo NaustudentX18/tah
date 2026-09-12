@@ -2,7 +2,7 @@ package app.tah.shell.data
 
 enum class SessionColumn { Working, NeedsYou, Done }
 
-enum class DoneChip { None, Failed, BudgetHit }
+enum class DoneChip { None, Failed, BudgetHit, Cancelled }
 
 enum class PermissionMode { Ask, AllowReads, AllowEdits }
 
