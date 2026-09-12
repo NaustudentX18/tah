@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="780" viewBox="0 0 390 780" role="img" aria-label="TAH dispatch">
+  <rect width="390" height="780" rx="36" fill="#0E1418"/>
+  <rect x="18" y="18" width="354" height="744" rx="28" fill="#161E24" stroke="#2A3842"/>
+  <text x="36" y="64" fill="#2EE6D6" font-family="ui-sans-serif,system-ui" font-size="18" font-weight="700">Dispatch</text>
+  <text x="36" y="90" fill="#9AA8B2" font-family="ui-sans-serif,system-ui" font-size="12">One agent. One prompt. Board watches.</text>
+  <rect x="36" y="120" width="318" height="160" rx="16" fill="#0E1418" stroke="#2A3842"/>
+  <text x="52" y="150" fill="#9AA8B2" font-family="ui-sans-serif,system-ui" font-size="11">PROMPT</text>
+  <text x="52" y="180" fill="#E6EDF2" font-family="ui-sans-serif,system-ui" font-size="14">Remember the CoS locks</text>
+  <text x="52" y="204" fill="#E6EDF2" font-family="ui-sans-serif,system-ui" font-size="14">and draft a short note.</text>
+  <rect x="36" y="300" width="318" height="56" rx="14" fill="#0E1418" stroke="#2A3842"/>
+  <text x="52" y="334" fill="#9AA8B2" font-family="ui-sans-serif,system-ui" font-size="12">Skill · General steer</text>
+  <rect x="36" y="372" width="318" height="52" rx="14" fill="#2EE6D6"/>
+  <text x="148" y="404" fill="#0B1214" font-family="ui-sans-serif,system-ui" font-size="16" font-weight="700">Start run</text>
+  <text x="36" y="460" fill="#9AA8B2" font-family="ui-sans-serif,system-ui" font-size="12">Demo stream if no key. Live if BYOK / Ollama probes OK.</text>
+</svg>

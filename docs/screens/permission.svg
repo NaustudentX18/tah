@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="780" viewBox="0 0 390 780" role="img" aria-label="TAH permission card">
+  <rect width="390" height="780" rx="36" fill="#0E1418"/>
+  <rect x="18" y="18" width="354" height="744" rx="28" fill="#161E24" stroke="#2A3842"/>
+  <text x="36" y="64" fill="#FFB020" font-family="ui-sans-serif,system-ui" font-size="16" font-weight="700">Needs you</text>
+  <text x="36" y="88" fill="#9AA8B2" font-family="ui-sans-serif,system-ui" font-size="12">Dismiss is not approve</text>
+  <rect x="36" y="120" width="318" height="280" rx="20" fill="#0E1418" stroke="#FFB020"/>
+  <text x="56" y="158" fill="#E6EDF2" font-family="ui-sans-serif,system-ui" font-size="16">memory.write</text>
+  <text x="56" y="184" fill="#9AA8B2" font-family="ui-sans-serif,system-ui" font-size="12">target · Skills &amp; Memory</text>
+  <text x="56" y="220" fill="#E6EDF2" font-family="ui-sans-serif,system-ui" font-size="13">Write a note the next run can read.</text>
+  <text x="56" y="248" fill="#2EE6D6" font-family="ui-sans-serif,system-ui" font-size="12">This one persists on-device.</text>
+  <rect x="56" y="280" width="86" height="36" rx="10" fill="#3DDC97"/>
+  <text x="70" y="303" fill="#0B1214" font-family="ui-sans-serif,system-ui" font-size="12">Approve</text>
+  <rect x="152" y="280" width="86" height="36" rx="10" fill="#FF5C6A"/>
+  <text x="172" y="303" fill="#0B1214" font-family="ui-sans-serif,system-ui" font-size="12">Reject</text>
+  <rect x="248" y="280" width="86" height="36" rx="10" fill="#1E2830" stroke="#2A3842"/>
+  <text x="270" y="303" fill="#E6EDF2" font-family="ui-sans-serif,system-ui" font-size="12">Guide</text>
+  <text x="36" y="440" fill="#9AA8B2" font-family="ui-sans-serif,system-ui" font-size="12">Exec stays Ask even if Allow edits is on.</text>
+</svg>

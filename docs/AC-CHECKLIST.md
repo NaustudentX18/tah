@@ -1,78 +1,46 @@
-# TAH AC checklist — M2 (0.3.0-m2)
+# TAH AC checklist — M3 (0.4.0-m3)
 
-Honest status vs PRD §6 and S1–S11. **Green** = met in this APK. **Partial** = usable but with noted gaps. **Remaining** = not done.
+Honest status vs S1–S11. **Green** = met in this tree. **Partial** = usable with noted gaps. **Remaining** = not done.
 
 Legend: ✅ green · 🟨 partial · ⬜ remaining
 
-## S1–S11 capability map
+## S1–S11
 
 | ID | Capability | Status | Notes |
 |----|------------|--------|-------|
 | S1 | Native Android shell | ✅ | Compose UI; not WebView-chat-only |
 | S2 | Session board | ✅ | Working / Needs you / Done; Failed & Budget hit chips on Done |
-| S3 | Single-agent run loop | 🟨 | Stream + tool cards + budgets work; tool exec is receipt-only; single gated tool after first turn |
-| S4 | Permission modes | ✅ | Ask default / Allow reads / Allow edits; no silent full-bypass; exec stays Ask |
-| S5 | Permission cards | ✅ | Approve / Reject / Guide separate; Reject ends tool; Guide independent |
+| S3 | Single-agent run loop | 🟨 | Multi-tool planner loop + budgets; `memory.write` persists; FS/shell/web still receipt-only; planner is prompt-heuristic, not model tool-JSON |
+| S4 | Permission modes | ✅ | Ask default / Allow reads / Allow edits; exec stays Ask |
+| S5 | Permission cards | ✅ | Approve / Reject / Guide; Reject ends tool; Guide independent |
 | S6 | Needs-you notifications | ✅ | Local notif + deep-link; dismiss ≠ approve |
-| S7 | Provider wizard | ✅ | BYOK + Ollama LAN; model switcher; on-device keys; capability badge |
-| S8 | Skills + memory | ✅ | Markdown packs (bundled + paste-import); memory CRUD; loop reads them |
-| S9 | Touch Steer + Keys | ✅ | Touch Steer default; Keys toggle persists; same session model |
-| S10 | Foreground / wake | 🟨 | FG service for active runs + documented OEM limits; not immortal; no auto-resume mid-tool after death |
-| S11 | Distinct TAH brand | ✅ | `app.tah.shell`, Signal Deck, harness glyph; no OFH/third-party marks |
+| S7 | Provider wizard | ✅ | BYOK + Ollama LAN; model switcher; on-device keys |
+| S8 | Skills + memory | ✅ | Bundled + paste + **SAF file import**; memory CRUD; loop + `memory.write` |
+| S9 | Touch Steer + Keys | ✅ | Touch Steer default; Keys persists |
+| S10 | Foreground / wake | 🟨 | FG service for active runs + OEM honesty; no mid-tool HTTP resume after death |
+| S11 | Distinct TAH brand | ✅ | `app.tah.shell`, Signal Deck, harness glyph |
 
 ## Detailed ACs
-
-### AC-Board
-- [x] Columns Working / Needs you / Done
-- [x] Failed / budget-hit as chips on Done — no fourth column
-- [x] Tap → detail with stream + tool timeline
-- [x] Empty states per column (witty UX copy) + first-run empty install
-- [x] Needs-you badge matches awaiting sessions
 
 ### AC-Run
 - [x] Start single-agent run with prompt + optional skill
 - [x] Tokens stream on-device (demo or SSE)
 - [x] Compact expandable tool cards
-- [x] Iteration / wall-clock budget → clear Done/failed, not hang
-- [ ] Full multi-tool function-calling loop — **remaining** (single gated tool after first turn)
-- [ ] Real FS/shell execution — **out of MVP scope** (receipt-only)
-
-### AC-Permissions
-- [x] Ask default for write/exec-class
-- [x] Approve / Reject / Guide separate
-- [x] Reject ends tool (no Guide required)
-- [x] Guide injects and continues
-- [x] No silent full-bypass UI
-- [x] Allow reads / Allow edits explicit in Settings
-- [x] Allow edits ≠ exec
-
-### AC-Notify
-- [x] Needs-you posts local notification
-- [x] Deep-link to permission card
-- [x] Dismiss does not auto-approve
-
-### AC-Providers
-- [x] First-run / Settings wizard BYOK or Ollama
-- [x] Keys on-device (EncryptedSharedPreferences + fallback)
-- [x] Model switcher
-- [x] Honest offline / capability badge
+- [x] Iteration / wall-clock budget → Done / Budget hit, not hang
+- [x] Multi-tool loop until wrap-up, reject, or budget
+- [x] `memory.write` applies for real
+- [ ] Model-native function-calling JSON — remaining
+- [ ] Real FS/shell execution — out of MVP (receipt-only)
 
 ### AC-Skills-Memory
 - [x] Load markdown skill pack and apply to a run
 - [x] Create/edit memory notes the loop can read
-- [ ] SAF / file-picker import — **remaining** (paste-import works)
+- [x] SAF / file-picker import
 
 ### AC-Modes-Lifecycle
 - [x] Touch Steer default
-- [x] Keys persists; same session model
-- [x] FG/wake documented; OEM tips; no immortal claim; FG service for active runs
-- [x] Process death: metadata + Needs-you survive
-- [ ] Automatic mid-tool loop resume after death — **remaining** (honest: user re-opens; state preserved)
-
-### AC-Brand-Ship
-- [x] applicationId / name TAH-specific
-- [x] No OFH / Claude / Warp / Termux / OpenClaw branding
-- [x] Installable APK via CI Actions artifact + documented local recipe
+- [x] FG/wake documented; no immortal claim
+- [ ] Automatic mid-tool loop resume after death — remaining
 
 ## Ship gate
 
@@ -81,5 +49,7 @@ Legend: ✅ green · 🟨 partial · ⬜ remaining
 | Session board | ✅ |
 | Approvals | ✅ |
 | Streaming tool cards | ✅ |
+| Multi-tool loop | ✅ (planner) |
+| Honest receipts | ✅ |
 
-**Do not ship Play** until product owners accept remaining S3/S10 partials. GitHub APK sideload is the M2 channel.
+GitHub APK sideload is the M3 channel. Do not ship Play until product owners accept remaining S3/S10 partials.

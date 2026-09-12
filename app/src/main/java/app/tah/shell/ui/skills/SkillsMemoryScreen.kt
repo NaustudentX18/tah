@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -95,6 +97,20 @@ fun SkillsMemoryScreen() {
 private fun SkillsTab(packs: List<SkillPack>, vm: SkillsViewModel) {
     var importText by rememberSaveable { mutableStateOf("") }
     var showImport by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    val openMarkdown = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val text = runCatching {
+            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+        }.getOrNull()
+        if (text.isNullOrBlank()) {
+            vm.importMarkdown("")
+        } else {
+            vm.importMarkdown(text)
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -103,7 +119,7 @@ private fun SkillsTab(packs: List<SkillPack>, vm: SkillsViewModel) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            "Markdown skill packs the agent loop reads at run start. Enable what Dispatch may apply.",
+            "Markdown skill packs the agent loop reads at run start. Enable what Dispatch may apply. Import from a .md file or paste.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -123,10 +139,16 @@ private fun SkillsTab(packs: List<SkillPack>, vm: SkillsViewModel) {
         }
         HorizontalDivider()
         OutlinedButton(
+            onClick = { openMarkdown.launch(arrayOf("text/markdown", "text/plain", "*/*")) },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Import from file")
+        }
+        OutlinedButton(
             onClick = { showImport = !showImport },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(if (showImport) "Hide import" else "Import markdown pack")
+            Text(if (showImport) "Hide paste import" else "Paste markdown pack")
         }
         if (showImport) {
             OutlinedTextField(

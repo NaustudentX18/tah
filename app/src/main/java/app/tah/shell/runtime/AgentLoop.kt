@@ -13,7 +13,6 @@ import app.tah.shell.data.SessionRepository
 import app.tah.shell.data.SettingsRepository
 import app.tah.shell.data.SkillStore
 import app.tah.shell.data.ToolCall
-import app.tah.shell.data.ToolRisk
 import app.tah.shell.data.ToolStatus
 import app.tah.shell.notify.NeedsYouNotifier
 import kotlinx.coroutines.CancellationException
@@ -38,6 +37,7 @@ class AgentLoop(
 ) {
     private val gates = ConcurrentHashMap<String, CompletableDeferred<GateDecision>>()
     private val jobs = ConcurrentHashMap<String, Job>()
+    private val runtime = ToolRuntime(memory)
 
     sealed class GateDecision {
         data object Approve : GateDecision()
@@ -88,33 +88,34 @@ class AgentLoop(
     fun anyRunning(): Boolean = jobs.values.any { it.isActive }
 
     private suspend fun runSession(sessionId: String) {
-        val session = sessions.session(sessionId) ?: return
+        val session0 = sessions.session(sessionId) ?: return
         sessions.updateSession(sessionId) { it.copy(column = SessionColumn.Working) }
         val provider = providers.current
-        val live = provider.isLive && session.providerKind != ProviderKind.Demo
+        val live = provider.isLive && session0.providerKind != ProviderKind.Demo
         val label = if (live) {
             "${provider.kind.name.lowercase()} · ${provider.modelId}"
         } else {
             "demo stream (offline)"
         }
-        sessions.appendSystem(sessionId, "Run started · $label · FG notification up (not immortal)")
-        if (budgetHit(session.copy(iterationsUsed = session.iterationsUsed))) {
+        sessions.appendSystem(sessionId, "Run started · $label · multi-tool loop · FG up (not immortal)")
+        if (budgetHit(session0)) {
             finishBudget(sessionId)
             return
         }
 
-        val skill = skills.byId(session.skillId)
+        val skill = skills.byId(session0.skillId)
         val enabledSkills = skills.enabledSnapshot()
         val memoryText = memory.snapshotText()
         val messages = mutableListOf(
             ChatMessage(
                 "system",
                 "You are TAH, a phone-first agent harness. Prefer short status. " +
-                    "Do not pretend tools ran without a card.\n\n" +
+                    "Do not pretend tools ran without a card. " +
+                    "memory.write is the only tool that persists on-device today.\n\n" +
                     "Active skill (${skill.title}):\n${skill.body}\n\n" +
                     "Enabled packs:\n$enabledSkills\n\nMemory:\n$memoryText",
             ),
-            ChatMessage("user", session.prompt),
+            ChatMessage("user", session0.prompt),
         )
 
         if (live) {
@@ -122,74 +123,100 @@ class AgentLoop(
         } else {
             streamDemoText(
                 sessionId,
-                "I'll inspect the workspace, then propose a tool. Tokens are streaming locally — no TAH proxy.",
+                "I'll plan tools on the board, wait if Ask requires it, then keep going until budget or wrap-up.",
             )
         }
-        sessions.incrementIteration(sessionId)
 
-        val tool = proposeTool(session)
-        sessions.upsertTool(tool.copy(status = ToolStatus.Pending))
-        delay(250)
-        sessions.upsertTool(tool.copy(status = ToolStatus.Running))
+        val priorNames = mutableListOf<String>()
+        var rejected = false
+        var lastGuide: String? = null
 
-        val latest = sessions.session(sessionId) ?: session
-        if (budgetHit(latest)) {
-            finishBudget(sessionId)
-            return
-        }
-
-        val decision = gate(latest, tool)
-        when (decision) {
-            GateDecision.Approve -> {
-                sessions.upsertTool(
-                    tool.copy(
-                        status = ToolStatus.Succeeded,
-                        resultExcerpt = "Approved. Receipt recorded on the timeline.",
-                        durationMs = 420,
-                    ),
-                )
-                sessions.appendSystem(sessionId, "Tool ${tool.name} approved.")
-                if (live) {
-                    messages += ChatMessage("assistant", "Requested ${tool.name} on ${tool.target}.")
-                    messages += ChatMessage("user", "Tool ${tool.name} succeeded. Wrap up in 3 sentences.")
-                    streamLive(sessionId, messages)
-                } else {
-                    streamDemoText(sessionId, "Write landed. Board will move this session to Done.")
-                }
-                sessions.markDone(sessionId, DoneChip.None)
+        while (true) {
+            val latest = sessions.session(sessionId) ?: break
+            if (budgetHit(latest)) {
+                finishBudget(sessionId)
+                return
             }
-            GateDecision.Reject -> {
-                sessions.upsertTool(
-                    tool.copy(
-                        status = ToolStatus.Rejected,
-                        resultExcerpt = "You rejected ${tool.name}. Guide was not required.",
-                    ),
-                )
-                sessions.appendSystem(sessionId, "You rejected ${tool.name}. That tool call ended.")
-                streamDemoText(sessionId, "Understood — I will not run ${tool.name}. Closing the turn.")
-                sessions.markDone(sessionId, DoneChip.None)
+            sessions.incrementIteration(sessionId)
+
+            val tool = ToolPlanner.next(latest, priorNames, SessionRepository.newId())
+            if (tool == null) {
+                sessions.appendSystem(sessionId, "No further tools planned. Wrapping the run.")
+                break
             }
-            is GateDecision.Guide -> {
-                sessions.upsertTool(
-                    tool.copy(
-                        status = ToolStatus.Succeeded,
-                        resultExcerpt = "Guided: ${decision.instruction}",
-                        durationMs = 360,
-                    ),
-                )
-                sessions.appendSystem(sessionId, "Guide injected: ${decision.instruction}")
-                if (live) {
-                    messages += ChatMessage(
-                        "user",
-                        "Guide from the human (do not ignore): ${decision.instruction}. Continue briefly.",
+            priorNames += tool.name
+            sessions.upsertTool(tool.copy(status = ToolStatus.Pending))
+            delay(180)
+            sessions.upsertTool(tool.copy(status = ToolStatus.Running))
+
+            val decision = gate(latest, tool)
+            when (decision) {
+                GateDecision.Approve -> {
+                    val outcome = runtime.apply(tool, latest.prompt)
+                    sessions.upsertTool(
+                        tool.copy(
+                            status = ToolStatus.Succeeded,
+                            resultExcerpt = outcome.excerpt,
+                            durationMs = if (outcome.appliedForReal) 90 else 40,
+                        ),
                     )
-                    streamLive(sessionId, messages)
-                } else {
-                    streamDemoText(sessionId, "Guided: ${decision.instruction} — continuing the turn, then Done.")
+                    sessions.appendSystem(
+                        sessionId,
+                        if (outcome.appliedForReal) {
+                            "Tool ${tool.name} approved and applied on-device."
+                        } else {
+                            "Tool ${tool.name} approved. Receipt only — no silent ${tool.name} side effect."
+                        },
+                    )
+                    if (live) {
+                        messages += ChatMessage("assistant", "Requested ${tool.name} on ${tool.target}.")
+                        messages += ChatMessage("user", "Tool ${tool.name}: ${outcome.excerpt}. Continue if useful.")
+                        streamLive(sessionId, messages)
+                    } else {
+                        streamDemoText(sessionId, outcome.excerpt)
+                    }
                 }
-                sessions.markDone(sessionId, DoneChip.None)
+                GateDecision.Reject -> {
+                    rejected = true
+                    sessions.upsertTool(
+                        tool.copy(
+                            status = ToolStatus.Rejected,
+                            resultExcerpt = "You rejected ${tool.name}. Guide was not required.",
+                        ),
+                    )
+                    sessions.appendSystem(sessionId, "You rejected ${tool.name}. That tool call ended.")
+                    streamDemoText(sessionId, "Understood — I will not run ${tool.name}. Closing the turn.")
+                    break
+                }
+                is GateDecision.Guide -> {
+                    lastGuide = decision.instruction
+                    val outcome = runtime.apply(tool, "${latest.prompt}\nGuide: ${decision.instruction}")
+                    sessions.upsertTool(
+                        tool.copy(
+                            status = ToolStatus.Succeeded,
+                            resultExcerpt = "Guided: ${decision.instruction}. ${outcome.excerpt}",
+                            durationMs = 120,
+                        ),
+                    )
+                    sessions.appendSystem(sessionId, "Guide injected: ${decision.instruction}")
+                    if (live) {
+                        messages += ChatMessage(
+                            "user",
+                            "Guide from the human (do not ignore): ${decision.instruction}. Continue briefly.",
+                        )
+                        streamLive(sessionId, messages)
+                    } else {
+                        streamDemoText(sessionId, "Guided: ${decision.instruction} — continuing if budget remains.")
+                    }
+                }
             }
         }
+
+        if (!rejected) {
+            val wrap = lastGuide?.let { "Guided run complete ($it)." } ?: "Board will move this session to Done."
+            streamDemoText(sessionId, wrap)
+        }
+        sessions.markDone(sessionId, DoneChip.None)
     }
 
     private suspend fun continueSeeded(sessionId: String, decision: GateDecision) {
@@ -200,14 +227,15 @@ class AgentLoop(
             ?: return
         when (decision) {
             GateDecision.Approve -> {
+                val outcome = runtime.apply(pendingTool, sessions.session(sessionId)?.prompt.orEmpty())
                 sessions.upsertTool(
                     pendingTool.copy(
                         status = ToolStatus.Succeeded,
-                        resultExcerpt = "Approved from seeded Needs-you card.",
+                        resultExcerpt = "Approved from seeded Needs-you card. ${outcome.excerpt}",
                         durationMs = 200,
                     ),
                 )
-                streamDemoText(sessionId, "Seeded write approved. Session moves to Done.")
+                streamDemoText(sessionId, outcome.excerpt)
                 sessions.markDone(sessionId, DoneChip.None)
             }
             GateDecision.Reject -> {
@@ -250,7 +278,7 @@ class AgentLoop(
             if (builder.isNotEmpty()) builder.append(' ')
             builder.append(word)
             sessions.appendToken(sessionId, if (builder.length == word.length) word else " $word")
-            delay(28)
+            delay(22)
         }
     }
 
@@ -279,29 +307,6 @@ class AgentLoop(
         return deferred.await()
     }
 
-    private fun proposeTool(session: AgentSession): ToolCall {
-        val prompt = session.prompt.lowercase()
-        val (name, target, summary, risk) = when {
-            listOf("shell", "exec", "run command", "bash").any { it in prompt } ->
-                ToolProposal("shell.exec", "sh -c …", "exec stays Ask even if Allow edits is on", ToolRisk.Exec)
-            listOf("http", "search", "fetch", "web").any { it in prompt } ->
-                ToolProposal("web.fetch", "https://example.invalid/docs", "GET summary", ToolRisk.Network)
-            listOf("read", "open", "inspect").any { it in prompt } && !prompt.contains("write") ->
-                ToolProposal("fs.read", "notes.md", "read excerpt", ToolRisk.Read)
-            else ->
-                ToolProposal("fs.write", "notes.md", "write a short patch from the prompt", ToolRisk.Write)
-        }
-        return ToolCall(
-            id = SessionRepository.newId(),
-            sessionId = session.id,
-            name = name,
-            target = target,
-            argsSummary = summary,
-            risk = risk,
-            status = ToolStatus.Pending,
-        )
-    }
-
     private fun budgetHit(session: AgentSession): Boolean {
         if (session.iterationsUsed >= session.iterationBudget) return true
         val elapsed = System.currentTimeMillis() - session.startedAt
@@ -312,11 +317,4 @@ class AgentLoop(
         sessions.appendSystem(sessionId, "Budget hit — stopped clean, not hung.")
         sessions.markDone(sessionId, DoneChip.BudgetHit)
     }
-
-    private data class ToolProposal(
-        val name: String,
-        val target: String,
-        val summary: String,
-        val risk: ToolRisk,
-    )
 }
