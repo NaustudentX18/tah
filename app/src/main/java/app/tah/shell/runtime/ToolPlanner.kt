@@ -41,6 +41,28 @@ object ToolPlanner {
 
         val sequence = buildList {
             when {
+                listOf("clipboard", "paste", "copy to clip", "clip board").any { it in p } -> {
+                    if (listOf("write", "set", "put", "copy ").any { it in p } && "paste" !in p) {
+                        add(
+                            Proposal(
+                                "clipboard.write",
+                                "device clipboard",
+                                "write text to clipboard after Ask",
+                                ToolRisk.Write,
+                            ),
+                        )
+                    } else {
+                        add(
+                            Proposal(
+                                "clipboard.read",
+                                "device clipboard",
+                                "read clipboard after Ask",
+                                ToolRisk.Read,
+                            ),
+                        )
+                    }
+                    add(Proposal("memory.write", "Skills & Memory", "keep a clipboard excerpt as a note", ToolRisk.Write))
+                }
                 listOf("shell", "exec", "run command", "bash", "terminal", "date", "echo ").any { it in p } -> {
                     val cmd = when {
                         p.contains("ls") -> "ls"
