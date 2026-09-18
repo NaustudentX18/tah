@@ -8,34 +8,27 @@ This is the plan. **Finished** means every advertised tool has a real, labeled e
 |-----|-------------|
 | v0.3.0-m2 | Board, Dispatch, Ask cards, FG service, BYOK/Ollama, demo stream |
 | v0.4.0-m3 | Multi-tool planner loop, real `memory.write`, SAF skill import, honest README |
+| v0.5.0-m4 | Workspace fs, `web.fetch`, allowlist shell, stop, JVM tests |
+| v0.6.0-m5 | Clipboard tools, workspace SAF export, lockdown of unrestricted shell/FS/swarm claims |
 
-## M4 — this build (`0.5.0-m4`)
+## M5 — this build (`0.6.0-m5`)
 
-Close the “receipt-only” hole **where it is safe**:
+1. **Clipboard** — `clipboard.read` / `clipboard.write` with Ask-default permission cards.
+2. **Workspace stays sandboxed** — no arbitrary `/path` device FS from tool cards.
+3. **Shell stays allowlist** — `date` / `echo` / `ls` only; ProcessShell removed from the product path.
+4. **Skills polish** — SAF import, enable/disable, Dispatch apply, workspace Export via CreateDocument.
+5. **Honest docs** — no multi-agent swarm marketing; no OFH branding.
 
-1. App-private **workspace** (`filesDir/workspace`) — `fs.read` / `fs.write` persist real files the user can see under Skills → Workspace.
-2. **`web.fetch`** — OkHttp GET of the URL on the card after Ask. Size-capped. No scrape farm.
-3. **`shell.exec`** — in-process allowlist (`date`, `echo`, `ls` of workspace). Anything else is refused. Still never `/bin/sh`.
-4. Stop a live run from Session detail. Cancelled chip on Done.
-5. JVM unit tests for planner, policy, URL + workspace names. CI runs them before assemble.
+## M6 — polish / optional
 
-## M5 — polish product (next)
-
-- Model-native tool JSON when the live provider supports it; heuristic planner stays fallback
 - Replay a Done session (new run, same prompt + skill)
-- Workspace export via SAF create-document
 - Stronger empty / error / offline copy on every screen
-- Signed release APK if you supply a keystore (debug stays the sideload default)
-
-## M6 — only if you accept the risk
-
-- Constrained SAF-backed *external* file read (user picks the file; no all-storage permission)
-- Optional LAN-only fetch rules
-- Not in scope unless you say so: multi-agent swarm, Play Console, unrestricted shell
+- Signed release APK if you supply a keystore
+- Constrained SAF-backed *external* file read (user picks the file) — only if accepted
 
 ## Never claimed
 
 - Silent device filesystem
-- Silent shell
+- Silent / unrestricted shell
 - Immortal background after OEM kill
 - Multi-agent orchestration inside the phone app

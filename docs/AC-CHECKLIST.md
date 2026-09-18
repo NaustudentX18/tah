@@ -1,4 +1,4 @@
-# TAH AC checklist — M4 (0.5.0-m4)
+# TAH AC checklist — M5 (0.6.0-m5)
 
 Honest status vs S1–S11. **Green** = met in this tree. **Partial** = usable with noted gaps. **Remaining** = not done.
 
@@ -10,15 +10,15 @@ Legend: ✅ green · 🟨 partial · ⬜ remaining
 |----|------------|--------|-------|
 | S1 | Native Android shell | ✅ | Compose UI; not WebView-chat-only |
 | S2 | Session board | ✅ | Working / Needs you / Done; Failed, Budget hit, Cancelled chips |
-| S3 | Single-agent run loop | 🟨 | Multi-tool loop; workspace + fetch + allowlist shell are real; planner is still heuristic |
+| S3 | Single-agent run loop | 🟨 | Multi-tool loop; workspace + clipboard + fetch + allowlist shell are real; planner heuristic + optional native tool JSON |
 | S4 | Permission modes | ✅ | Ask default / Allow reads / Allow edits; exec and network stay Ask |
 | S5 | Permission cards | ✅ | Approve / Reject / Guide; Reject ends tool; Guide independent |
 | S6 | Needs-you notifications | ✅ | Local notif + deep-link; dismiss ≠ approve |
 | S7 | Provider wizard | ✅ | BYOK + Ollama LAN; model switcher; on-device keys |
-| S8 | Skills + memory | ✅ | Bundled + paste + SAF; memory CRUD; workspace tab |
+| S8 | Skills + memory | ✅ | Bundled + paste + SAF; enable/disable; memory CRUD; workspace + export |
 | S9 | Touch Steer + Keys | ✅ | Touch Steer default; Keys persists |
 | S10 | Foreground / wake | 🟨 | FG service for active runs + OEM honesty; no mid-tool HTTP resume after death |
-| S11 | Distinct TAH brand | ✅ | `app.tah.shell`, Signal Deck, harness glyph |
+| S11 | Distinct TAH brand | ✅ | `app.tah.shell`, Signal Deck, harness glyph; no OFH |
 
 ## Detailed ACs
 
@@ -29,18 +29,21 @@ Legend: ✅ green · 🟨 partial · ⬜ remaining
 - [x] Iteration / wall-clock budget → Done / Budget hit, not hang
 - [x] Multi-tool loop until wrap-up, reject, or budget
 - [x] `memory.write` applies for real
-- [x] `fs.read` / `fs.write` apply to app workspace
+- [x] `fs.read` / `fs.write` / `fs.list` apply to app workspace only
+- [x] `clipboard.read` / `clipboard.write` after Ask
 - [x] `web.fetch` GET after Ask
 - [x] `shell.exec` allowlist or honest refuse
 - [x] Stop control
-- [ ] Model-native function-calling JSON — remaining
+- [x] Native tool JSON when provider streams it (fallback planner)
 - [ ] Shared-storage FS / `/bin/sh` — out of product
+- [ ] Multi-agent swarm — out of product
 
 ### AC-Skills-Memory
 - [x] Load markdown skill pack and apply to a run
+- [x] Enable / disable packs for Dispatch
 - [x] Create/edit memory notes the loop can read
 - [x] SAF / file-picker import
-- [x] Workspace list / write / delete
+- [x] Workspace list / write / delete / SAF export
 
 ### AC-Modes-Lifecycle
 - [x] Touch Steer default
