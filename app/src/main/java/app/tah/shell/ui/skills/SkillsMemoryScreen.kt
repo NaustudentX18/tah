@@ -33,7 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import app.tah.shell.ui.TahModifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,7 +66,7 @@ fun SkillsMemoryScreen() {
 
     Scaffold(topBar = { TopAppBar(title = { Text("Skills & Memory") }) }) { padding ->
         Column(
-            modifier = Modifier
+            modifier = TahModifier
                 .fillMaxSize()
                 .padding(padding),
         ) {
@@ -78,7 +78,7 @@ fun SkillsMemoryScreen() {
             message?.let {
                 Text(
                     it,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = TahModifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (it.contains("need", ignoreCase = true) || it.contains("too large", ignoreCase = true) || it.contains("Bundled", ignoreCase = true)) {
                         TahReject
@@ -115,14 +115,14 @@ private fun SkillsTab(packs: List<SkillPack>, vm: SkillsViewModel) {
         }
     }
     Column(
-        modifier = Modifier
+        modifier = TahModifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            "Markdown skill packs the agent loop reads at run start. Enable what Dispatch may apply. Import from a .md file or paste.",
+            "Markdown skill packs the agent loop reads at run start. Toggle enable to apply on Dispatch. Import via SAF (.md) or paste.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -143,13 +143,13 @@ private fun SkillsTab(packs: List<SkillPack>, vm: SkillsViewModel) {
         HorizontalDivider()
         OutlinedButton(
             onClick = { openMarkdown.launch(arrayOf("text/markdown", "text/plain", "*/*")) },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = TahModifier.fillMaxWidth(),
         ) {
             Text("Import from file")
         }
         OutlinedButton(
             onClick = { showImport = !showImport },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = TahModifier.fillMaxWidth(),
         ) {
             Text(if (showImport) "Hide paste import" else "Paste markdown pack")
         }
@@ -158,7 +158,7 @@ private fun SkillsTab(packs: List<SkillPack>, vm: SkillsViewModel) {
                 value = importText,
                 onValueChange = { importText = it },
                 label = { Text("Paste markdown (# Title …)") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = TahModifier.fillMaxWidth(),
                 minLines = 6,
             )
             Button(
@@ -167,7 +167,7 @@ private fun SkillsTab(packs: List<SkillPack>, vm: SkillsViewModel) {
                     if (importText.isNotBlank()) importText = ""
                 },
                 enabled = importText.isNotBlank(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = TahModifier.fillMaxWidth(),
             ) { Text("Load pack") }
         }
     }
@@ -181,14 +181,14 @@ private fun SkillPackRow(
 ) {
     var expanded by rememberSaveable(pack.id) { mutableStateOf(false) }
     Column(
-        modifier = Modifier
+        modifier = TahModifier
             .fillMaxWidth()
             .border(1.dp, TahOutline, RoundedCornerShape(12.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = TahModifier.weight(1f)) {
                 Text(pack.title, style = MaterialTheme.typography.titleMedium)
                 Text(
                     if (pack.bundled) "Bundled" else "Imported",
@@ -221,7 +221,7 @@ private fun MemoryTab(notes: List<MemoryNote>, vm: SkillsViewModel) {
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
 
     Column(
-        modifier = Modifier
+        modifier = TahModifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
@@ -240,7 +240,7 @@ private fun MemoryTab(notes: List<MemoryNote>, vm: SkillsViewModel) {
         } else {
             notes.forEach { note ->
                 Column(
-                    modifier = Modifier
+                    modifier = TahModifier
                         .fillMaxWidth()
                         .border(1.dp, TahOutline, RoundedCornerShape(12.dp))
                         .padding(12.dp),
@@ -270,13 +270,13 @@ private fun MemoryTab(notes: List<MemoryNote>, vm: SkillsViewModel) {
             value = title,
             onValueChange = { title = it },
             label = { Text("Title") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = TahModifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = body,
             onValueChange = { body = it },
             label = { Text("Note") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = TahModifier.fillMaxWidth(),
             minLines = 3,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -289,7 +289,7 @@ private fun MemoryTab(notes: List<MemoryNote>, vm: SkillsViewModel) {
                     editingId = null
                 },
                 enabled = body.isNotBlank(),
-                modifier = Modifier.weight(1f),
+                modifier = TahModifier.weight(1f),
             ) { Text(if (editingId == null) "Save note" else "Update note") }
             if (editingId != null) {
                 OutlinedButton(
@@ -298,85 +298,9 @@ private fun MemoryTab(notes: List<MemoryNote>, vm: SkillsViewModel) {
                         title = ""
                         body = ""
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = TahModifier.weight(1f),
                 ) { Text("Cancel") }
             }
         }
-    }
-}
-
-@Composable
-private fun WorkspaceTab(
-    files: List<app.tah.shell.data.WorkspaceFile>,
-    vm: SkillsViewModel,
-) {
-    var name by rememberSaveable { mutableStateOf("notes.md") }
-    var body by rememberSaveable { mutableStateOf("") }
-    var preview by rememberSaveable { mutableStateOf<String?>(null) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            "App-private files under the TAH workspace. fs.read / fs.write use this folder. Not shared phone storage.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (files.isEmpty()) {
-            TahEmptyState(
-                title = "Workspace empty",
-                body = "Dispatch a write, or create a file here. Agents see this list at run start.",
-            )
-        } else {
-            files.forEach { file ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, TahOutline, RoundedCornerShape(12.dp))
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(file.name, style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        "${file.bytes} bytes",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Row {
-                        TextButton(onClick = { preview = vm.workspacePreview(file.name) }) { Text("Preview") }
-                        TextButton(onClick = { vm.deleteWorkspaceFile(file.name) }) { Text("Delete") }
-                    }
-                }
-            }
-        }
-        preview?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall)
-        }
-        HorizontalDivider()
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Filename") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = body,
-            onValueChange = { body = it },
-            label = { Text("Contents") },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 4,
-        )
-        Button(
-            onClick = {
-                vm.addWorkspaceFile(name, body)
-                body = ""
-            },
-            enabled = body.isNotBlank(),
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Write workspace file") }
     }
 }
