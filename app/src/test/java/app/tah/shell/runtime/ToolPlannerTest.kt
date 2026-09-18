@@ -32,6 +32,13 @@ class ToolPlannerTest {
     }
 
     @Test
+    fun clipboardPromptPlansRead() {
+        val first = ToolPlanner.propose("Read my clipboard and summarize", emptyList())
+        assertEquals("clipboard.read", first?.name)
+        assertEquals(ToolRisk.Read, first?.risk)
+    }
+
+    @Test
     fun wrapWhenSequenceExhausted() {
         val p = "Draft a short status"
         assertNull(ToolPlanner.propose(p, listOf("fs.write", "memory.write")))

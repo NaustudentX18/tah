@@ -85,4 +85,12 @@ class SkillsViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun workspacePreview(name: String): String = container.workspace.read(name)
+
+    fun markExported(name: String) {
+        _message.value = "Exported workspace/$name via SAF."
+    }
+
+    fun markExportFailed() {
+        _message.value = "Export failed — pick another location."
+    }
 }

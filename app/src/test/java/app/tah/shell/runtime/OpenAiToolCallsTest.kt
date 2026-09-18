@@ -14,7 +14,7 @@ class OpenAiToolCallsTest {
     @Test
     fun generatesCompleteToolsSchema() {
         val tools = client.createToolsJson()
-        assertEquals(7, tools.length())
+        assertEquals(8, tools.length())
 
         val toolNames = mutableListOf<String>()
         for (i in 0 until tools.length()) {
@@ -30,7 +30,9 @@ class OpenAiToolCallsTest {
         assertTrue(toolNames.contains("fs_list"))
         assertTrue(toolNames.contains("web_fetch"))
         assertTrue(toolNames.contains("memory_write"))
-        assertTrue(toolNames.contains("agent_spawn"))
+        assertTrue(toolNames.contains("clipboard_read"))
+        assertTrue(toolNames.contains("clipboard_write"))
+        assertTrue(!toolNames.contains("agent_spawn"))
     }
 
     @Test
@@ -59,18 +61,23 @@ class OpenAiToolCallsTest {
     }
 
     @Test
-    fun mapsAgentSpawnCorrectly() {
-        val event = client.mapToolCall("agent_spawn", """{"role":"Researcher","prompt":"Find info about Termux"}""")
-        assertNotNull(event)
-        assertEquals("agent.spawn", event?.name)
-        assertEquals("Researcher", event?.target)
-        assertEquals("Find info about Termux", event?.argsSummary)
-        assertEquals(ToolRisk.Write, event?.risk)
+    fun mapsClipboardTools() {
+        val read = client.mapToolCall("clipboard_read", "{}")
+        assertNotNull(read)
+        assertEquals("clipboard.read", read?.name)
+        assertEquals(ToolRisk.Read, read?.risk)
+
+        val write = client.mapToolCall("clipboard_write", """{"text":"hello board"}""")
+        assertNotNull(write)
+        assertEquals("clipboard.write", write?.name)
+        assertEquals("hello board", write?.argsSummary)
+        assertEquals(ToolRisk.Write, write?.risk)
     }
 
     @Test
     fun ignoresUnknownTools() {
         val event = client.mapToolCall("unknown_teleport", "{}")
         assertNull(event)
+        assertNull(client.mapToolCall("agent_spawn", """{"role":"Planner","prompt":"x"}"""))
     }
 }
