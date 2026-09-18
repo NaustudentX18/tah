@@ -8,21 +8,20 @@ import app.tah.shell.data.WorkspaceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-import java.io.File
-
 /**
  * Applies approved tools.
  *
- * Real effects:
+ * Real effects (sandboxed):
  * - memory.write — MemoryStore note
- * - fs.read / fs.write — app-private workspace or device filesystem paths
- * - fs.list — list workspace or device directories
+ * - fs.read / fs.write / fs.list — app-private workspace only (filesDir/workspace)
+ * - clipboard.read / clipboard.write — device clipboard after Ask card
  * - web.fetch — HTTP GET of the card target
- * - shell.exec — real process shell or in-process allowlist
+ * - shell.exec — in-process allowlist (date, echo, ls). Never /bin/sh.
  */
 class ToolRuntime(
     private val memory: MemoryStore,
     private val workspace: WorkspaceStore,
+    private val clipboard: ClipboardAccess = FakeClipboard(),
     private val http: HttpFetcher = HttpFetcher(),
 ) {
     data class Outcome(
@@ -35,7 +34,9 @@ class ToolRuntime(
             "memory.write" -> writeMemory(tool, prompt)
             "fs.read" -> readWorkspace(tool)
             "fs.write" -> writeWorkspace(tool, prompt)
-            "fs.list" -> listFiles(tool)
+            "fs.list" -> listWorkspace(tool)
+            "clipboard.read" -> readClipboard()
+            "clipboard.write" -> writeClipboard(tool, prompt)
             "web.fetch" -> fetch(tool, prompt)
             "shell.exec" -> exec(tool)
             else -> Outcome(
@@ -63,26 +64,7 @@ class ToolRuntime(
     }
 
     private fun readWorkspace(tool: ToolCall): Outcome {
-        val target = tool.target.trim()
-        val isExplicitPath = target.startsWith("/") || target.startsWith("./")
-        val file = if (isExplicitPath) File(target) else null
-
-        if (file != null) {
-            return if (!file.exists()) {
-                Outcome("File ${file.absolutePath} does not exist.", false)
-            } else if (!file.canRead()) {
-                Outcome("Permission denied reading ${file.absolutePath}.", false)
-            } else {
-                val text = runCatching { file.readText().take(WorkspaceStore.MAX_CHARS) }.getOrNull()
-                if (text == null) {
-                    Outcome("Failed to read ${file.absolutePath}.", false)
-                } else {
-                    Outcome("Read ${file.absolutePath} (${text.length} chars):\n${text.take(800)}", true)
-                }
-            }
-        }
-
-        val name = WorkspaceNames.sanitize(target)
+        val name = WorkspaceNames.sanitize(tool.target)
         val body = workspace.read(name)
         return if (body.isBlank()) {
             Outcome("Workspace file $name is empty or missing.", true)
@@ -92,50 +74,51 @@ class ToolRuntime(
     }
 
     private fun writeWorkspace(tool: ToolCall, prompt: String): Outcome {
-        val target = tool.target.trim()
-        val isExplicitPath = target.startsWith("/") || target.startsWith("./")
-        val file = if (isExplicitPath) File(target) else null
-
+        val name = WorkspaceNames.sanitize(
+            tool.target.ifBlank { WorkspaceNames.filenameFromPrompt(prompt) },
+        )
         val content = if (tool.argsSummary.isNotBlank() && !tool.argsSummary.startsWith("write ")) {
             tool.argsSummary
         } else {
             buildString {
-                append("# ").append(target).append('\n')
-                append("Written by TAH Agent.\n\n")
+                append("# ").append(name).append('\n')
+                append("Written by TAH.\n\n")
                 append(prompt.take(2_000))
             }
         }
-
-        if (file != null) {
-            return try {
-                file.parentFile?.mkdirs()
-                file.writeText(content.take(WorkspaceStore.MAX_CHARS))
-                Outcome("Wrote ${file.absolutePath} (${file.length()} bytes).", true)
-            } catch (t: Throwable) {
-                Outcome("Failed writing to ${file.absolutePath}: ${t.message}", false)
-            }
-        }
-
-        val name = WorkspaceNames.sanitize(target.ifBlank { WorkspaceNames.filenameFromPrompt(prompt) })
         val resultFile = workspace.write(name, content)
         return Outcome("Wrote workspace/${resultFile.name} (${resultFile.bytes} bytes).", true)
     }
 
-    private fun listFiles(tool: ToolCall): Outcome {
-        val target = tool.target.trim()
-        val dir = if (target.isNotBlank() && target != "workspace") File(target) else workspace.rootDir
-        if (!dir.exists()) {
-            return Outcome("Directory does not exist: ${dir.absolutePath}", false)
-        }
-        val entries = dir.listFiles()?.take(100)?.map {
-            if (it.isDirectory) "${it.name}/" else "${it.name} (${it.length()} bytes)"
-        }?.sorted() ?: emptyList()
-
+    private fun listWorkspace(tool: ToolCall): Outcome {
+        val names = workspace.listNames()
         return Outcome(
-            if (entries.isEmpty()) "(empty directory: ${dir.absolutePath})"
-            else "Directory ${dir.absolutePath}:\n" + entries.joinToString("\n"),
+            if (names.isEmpty()) "(workspace empty — app-private filesDir/workspace only)"
+            else "Workspace (${names.size}):\n" + names.joinToString("\n"),
             true,
         )
+    }
+
+    private fun readClipboard(): Outcome {
+        val text = clipboard.read()
+        return if (text.isBlank()) {
+            Outcome("Clipboard is empty.", true)
+        } else {
+            Outcome("Clipboard (${text.length} chars):\n${text.take(800)}", true)
+        }
+    }
+
+    private fun writeClipboard(tool: ToolCall, prompt: String): Outcome {
+        val text = tool.argsSummary.ifBlank { tool.target }.ifBlank { prompt.take(500) }
+        if (text.isBlank()) {
+            return Outcome("Nothing to write to clipboard.", false)
+        }
+        val ok = clipboard.write(text)
+        return if (ok) {
+            Outcome("Wrote ${text.length} chars to clipboard.", true)
+        } else {
+            Outcome("Clipboard write failed.", false)
+        }
     }
 
     private fun fetch(tool: ToolCall, prompt: String): Outcome {
@@ -151,7 +134,7 @@ class ToolRuntime(
 
     private fun exec(tool: ToolCall): Outcome {
         val command = tool.target.ifBlank { tool.argsSummary }
-        val (ok, text) = InProcessShell.run(command, workspace)
+        val (ok, text) = InProcessShell.run(command, workspace.listNames())
         return Outcome(text, ok)
     }
 }
