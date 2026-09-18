@@ -23,7 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier.modifier
+import app.tah.shell.ui.TahModifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.tah.shell.ui.components.TahEmptyState
@@ -52,7 +52,7 @@ internal fun WorkspaceTab(
     }
 
     Column(
-        modifier = Modifier
+        modifier = TahModifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
@@ -71,7 +71,7 @@ internal fun WorkspaceTab(
         } else {
             files.forEach { file ->
                 Column(
-                    modifier = Modifier
+                    modifier = TahModifier
                         .fillMaxWidth()
                         .border(1.dp, TahOutline, RoundedCornerShape(12.dp))
                         .padding(12.dp),
@@ -104,13 +104,13 @@ internal fun WorkspaceTab(
             value = name,
             onValueChange = { name = it },
             label = { Text("Filename") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = TahModifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = body,
             onValueChange = { body = it },
             label = { Text("Contents") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = TahModifier.fillMaxWidth(),
             minLines = 4,
         )
         Button(
@@ -119,7 +119,7 @@ internal fun WorkspaceTab(
                 body = ""
             },
             enabled = body.isNotBlank(),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = TahModifier.fillMaxWidth(),
         ) { Text("Write workspace file") }
     }
 }
