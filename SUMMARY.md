@@ -1,27 +1,38 @@
-# TAH M4 progress (0.5.0-m4)
+# TAH M5 progress (0.6.0-m5)
 
 ## Ship gate
 
-Board + streaming tool cards + permission cards remain wired. Tools that the product advertises now have a real, labeled effect inside the contract.
+Board + streaming tool cards + permission cards remain wired. Ask-default; Reject ends tool; Guide independent; exec-class stays Ask. No silent full-bypass. Package `app.tah.shell`, Signal Deck, Failed chip-on-Done. No OFH branding.
 
-## M4 landed
+## M5 landed
 
 | Goal | Status |
 |------|--------|
-| Workspace files | `fs.read` / `fs.write` persist under app-private `filesDir/workspace` |
-| Live fetch | `web.fetch` does an Ask-gated HTTP GET of the card URL (32 KiB cap) |
-| Shell | In-process allowlist: `date`, `echo`, `ls`. Anything else refused. No `/bin/sh` |
-| Stop | Session detail stop control → Cancelled chip |
-| Tests | JVM unit tests on planner, policy, URL + names; CI runs them |
-| Version | `0.5.0-m4` (versionCode 5) |
+| Workspace files | `fs.read` / `fs.write` / `fs.list` — **app-private** `filesDir/workspace` only |
+| Clipboard | `clipboard.read` / `clipboard.write` — real device clipboard after Ask card |
+| Memory | `memory.write` persists notes the next run can read |
+| Shell | In-process allowlist only: `date`, `echo`, `ls`. **No** `/bin/sh` / ProcessShell |
+| Skills | SAF import + paste; enable/disable; Dispatch applies enabled packs; workspace SAF export |
+| Lockdown | Removed Jake Malby overreach: unrestricted shell, shared FS paths, `agent.spawn` swarm |
+| Version | `0.6.0-m5` (versionCode 6) |
+
+## Real vs receipt-only
+
+| Tool | Effect |
+|------|--------|
+| `memory.write` | **Real** — MemoryStore |
+| `fs.read` / `fs.write` / `fs.list` | **Real** — app-private workspace |
+| `clipboard.read` / `clipboard.write` | **Real** — ClipboardManager |
+| `web.fetch` | **Real** — Ask-gated HTTP GET (32 KiB) |
+| `shell.exec` | **Real allowlist** or honest refuse — never arbitrary binaries |
+| Unknown / removed (`agent.spawn`) | Receipt / ignored |
 
 ## Still not this product
 
-- Shared / external device filesystem
+- Shared / external device filesystem (SAF import/export only by user pick)
 - Unrestricted shell
-- Native model function-calling JSON (planner is still heuristic)
-- Mid-tool HTTP resume after process death
 - Multi-agent swarm
 - Play Store
+- Native model function-calling is best-effort when provider streams tool JSON; heuristic planner remains fallback
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
