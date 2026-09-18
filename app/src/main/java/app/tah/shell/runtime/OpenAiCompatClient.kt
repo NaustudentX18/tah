@@ -95,13 +95,11 @@ class OpenAiCompatClient(
                                 break
                             }
 
-                            // 1. Text token
                             val token = parseDeltaContent(data)
                             if (token != null) {
                                 trySend(StreamEvent.Token(token))
                             }
 
-                            // 2. Tool call deltas
                             accumulateToolDeltas(data, inflightTools)
                         }
                     }
@@ -157,78 +155,8 @@ class OpenAiCompatClient(
         }
     }
 
-    fun mapToolCall(fnName: String, argsRaw: String): StreamEvent.ToolCallReady? {
-        val argsJson = runCatching { JSONObject(argsRaw) }.getOrDefault(JSONObject())
-        return when (fnName) {
-            "shell_exec" -> {
-                val cmd = argsJson.optString("command", argsRaw).trim()
-                StreamEvent.ToolCallReady(
-                    name = "shell.exec",
-                    target = cmd,
-                    argsSummary = cmd,
-                    risk = ToolRisk.Exec,
-                )
-            }
-            "fs_read" -> {
-                val path = argsJson.optString("path", argsRaw).trim()
-                StreamEvent.ToolCallReady(
-                    name = "fs.read",
-                    target = path,
-                    argsSummary = "read $path",
-                    risk = ToolRisk.Read,
-                )
-            }
-            "fs_write" -> {
-                val path = argsJson.optString("path").trim()
-                val content = argsJson.optString("content")
-                StreamEvent.ToolCallReady(
-                    name = "fs.write",
-                    target = path,
-                    argsSummary = content,
-                    risk = ToolRisk.Write,
-                )
-            }
-            "fs_list" -> {
-                val path = argsJson.optString("path", "workspace").trim()
-                StreamEvent.ToolCallReady(
-                    name = "fs.list",
-                    target = path,
-                    argsSummary = "list $path",
-                    risk = ToolRisk.Read,
-                )
-            }
-            "web_fetch" -> {
-                val url = argsJson.optString("url", argsRaw).trim()
-                StreamEvent.ToolCallReady(
-                    name = "web.fetch",
-                    target = url,
-                    argsSummary = "GET $url",
-                    risk = ToolRisk.Network,
-                )
-            }
-            "memory_write" -> {
-                val title = argsJson.optString("title", "Note")
-                val body = argsJson.optString("body", argsRaw)
-                StreamEvent.ToolCallReady(
-                    name = "memory.write",
-                    target = title,
-                    argsSummary = body,
-                    risk = ToolRisk.Write,
-                )
-            }
-            "agent_spawn" -> {
-                val role = argsJson.optString("role", "Planner")
-                val prompt = argsJson.optString("prompt", argsRaw)
-                StreamEvent.ToolCallReady(
-                    name = "agent.spawn",
-                    target = role,
-                    argsSummary = prompt,
-                    risk = ToolRisk.Write,
-                )
-            }
-            else -> null
-        }
-    }
+    fun mapToolCall(fnName: String, argsRaw: String): StreamEvent.ToolCallReady? =
+        OpenAiToolSchemas.mapToolCall(fnName, argsRaw)
 
     fun probe(snapshot: ProviderSnapshot, apiKey: String): ProbeResult {
         val url = snapshot.baseUrl.trimEnd('/') + "/models"
@@ -275,122 +203,7 @@ class OpenAiCompatClient(
         }
     }
 
-    fun createToolsJson(): JSONArray {
-        return JSONArray().apply {
-            put(
-                JSONObject().put("type", "function").put(
-                    "function",
-                    JSONObject()
-                        .put("name", "shell_exec")
-                        .put("description", "Execute a shell command on device (/system/bin/sh or process)")
-                        .put(
-                            "parameters",
-                            JSONObject().put("type", "object")
-                                .put("properties", JSONObject().put("command", JSONObject().put("type", "string").put("description", "Command string")))
-                                .put("required", JSONArray().put("command")),
-                        ),
-                ),
-            )
-            put(
-                JSONObject().put("type", "function").put(
-                    "function",
-                    JSONObject()
-                        .put("name", "fs_read")
-                        .put("description", "Read workspace or device file")
-                        .put(
-                            "parameters",
-                            JSONObject().put("type", "object")
-                                .put("properties", JSONObject().put("path", JSONObject().put("type", "string").put("description", "Path to file")))
-                                .put("required", JSONArray().put("path")),
-                        ),
-                ),
-            )
-            put(
-                JSONObject().put("type", "function").put(
-                    "function",
-                    JSONObject()
-                        .put("name", "fs_write")
-                        .put("description", "Write workspace or device file")
-                        .put(
-                            "parameters",
-                            JSONObject().put("type", "object")
-                                .put(
-                                    "properties",
-                                    JSONObject()
-                                        .put("path", JSONObject().put("type", "string").put("description", "File path"))
-                                        .put("content", JSONObject().put("type", "string").put("description", "File content")),
-                                )
-                                .put("required", JSONArray().put("path").put("content")),
-                        ),
-                ),
-            )
-            put(
-                JSONObject().put("type", "function").put(
-                    "function",
-                    JSONObject()
-                        .put("name", "fs_list")
-                        .put("description", "List directory entries")
-                        .put(
-                            "parameters",
-                            JSONObject().put("type", "object")
-                                .put("properties", JSONObject().put("path", JSONObject().put("type", "string").put("description", "Directory path"))),
-                        ),
-                ),
-            )
-            put(
-                JSONObject().put("type", "function").put(
-                    "function",
-                    JSONObject()
-                        .put("name", "web_fetch")
-                        .put("description", "HTTP GET fetch URL content")
-                        .put(
-                            "parameters",
-                            JSONObject().put("type", "object")
-                                .put("properties", JSONObject().put("url", JSONObject().put("type", "string").put("description", "HTTP URL")))
-                                .put("required", JSONArray().put("url")),
-                        ),
-                ),
-            )
-            put(
-                JSONObject().put("type", "function").put(
-                    "function",
-                    JSONObject()
-                        .put("name", "memory_write")
-                        .put("description", "Persist note to Skills & Memory")
-                        .put(
-                            "parameters",
-                            JSONObject().put("type", "object")
-                                .put(
-                                    "properties",
-                                    JSONObject()
-                                        .put("title", JSONObject().put("type", "string").put("description", "Note title"))
-                                        .put("body", JSONObject().put("type", "string").put("description", "Note body")),
-                                )
-                                .put("required", JSONArray().put("title").put("body")),
-                        ),
-                ),
-            )
-            put(
-                JSONObject().put("type", "function").put(
-                    "function",
-                    JSONObject()
-                        .put("name", "agent_spawn")
-                        .put("description", "Spawn subagent in swarm (Planner, Researcher, Coder, Verifier)")
-                        .put(
-                            "parameters",
-                            JSONObject().put("type", "object")
-                                .put(
-                                    "properties",
-                                    JSONObject()
-                                        .put("role", JSONObject().put("type", "string").put("description", "Subagent role"))
-                                        .put("prompt", JSONObject().put("type", "string").put("description", "Task instructions")),
-                                )
-                                .put("required", JSONArray().put("role").put("prompt")),
-                        ),
-                ),
-            )
-        }
-    }
+    fun createToolsJson(): JSONArray = OpenAiToolSchemas.createToolsJson()
 
     data class ProbeResult(val ok: Boolean, val detail: String, val models: List<String>)
 
