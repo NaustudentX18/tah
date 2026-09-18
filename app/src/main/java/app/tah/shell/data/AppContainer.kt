@@ -4,6 +4,7 @@ import android.app.Application
 import app.tah.shell.notify.NeedsYouNotifier
 import app.tah.shell.runtime.AgentLoop
 import app.tah.shell.runtime.OpenAiCompatClient
+import app.tah.shell.runtime.SystemClipboard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -17,6 +18,7 @@ class AppContainer(val app: Application) {
     val memory = MemoryStore(app)
     val skills = SkillStore(app)
     val workspace = WorkspaceStore(app)
+    val clipboard = SystemClipboard(app)
     val notifier = NeedsYouNotifier(app)
     val client = OpenAiCompatClient()
     val loop = AgentLoop(
@@ -27,6 +29,7 @@ class AppContainer(val app: Application) {
         memory = memory,
         skills = skills,
         workspace = workspace,
+        clipboard = clipboard,
         notifier = notifier,
         client = client,
         scope = scope,
